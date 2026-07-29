@@ -1,7 +1,18 @@
-# novolis-template-dotnet
+# novolis-cad
 
-Canonical template for Novolis package, tool, analyzer, app, and template repositories.
+Avalonia-free CAD interchange packages for Novolis.
 
-Use **Use this template** on GitHub to create a new repository.
+| Package | Role |
+|---------|------|
+| **Novolis.Cad.Primitives** | `.cadjson` / `.cadphys` DTOs, workspace enums, vec helpers |
 
-Supports: library, CLI tool, analyzer, game/app, and template repos without over-specializing.
+Schemas: [novolis-governance](https://github.com/Novolis-Platform/novolis-governance) (`schemas/cad`). UI editor: [Novolis.Avalonia.Cad](https://github.com/Novolis-Platform/novolis-avalonia).
+
+## Build
+
+```powershell
+dotnet build Novolis.Cad.slnx
+dotnet test Novolis.Cad.slnx
+```
+
+Cross-repo local iteration: open `Novolis.Platform.slnx` (ProjectReference mode). Do not use local NuGet folder feeds.

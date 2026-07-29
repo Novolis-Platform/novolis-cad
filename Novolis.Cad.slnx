@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Novolis.Cad.Primitives/Novolis.Cad.Primitives.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Novolis.Cad.Unit/Novolis.Cad.Unit.csproj" />
+  </Folder>
+</Solution>

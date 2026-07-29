@@ -1,1 +1,14 @@
-{"packages":{}}
+{
+  "packages": {
+    "Novolis.Cad.Primitives": {
+      "paths": [
+        "src/Novolis.Cad.Primitives/**",
+        "tests/Novolis.Cad.Unit/**",
+        "Directory.Build.props",
+        "Directory.Packages.props",
+        "global.json"
+      ],
+      "project": "src/Novolis.Cad.Primitives/Novolis.Cad.Primitives.csproj"
+    }
+  }
+}
