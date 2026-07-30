@@ -5,6 +5,7 @@ Avalonia-free CAD interchange types for Novolis `.cadjson` / `.cadphys` document
 - Document / entity / layer DTOs (`CadDocument`, `CadEntity`, …)
 - Workspace and selection enums (`CadWorkspace`, `CadSelectionMode`, …)
 - Vec / deck / bounds helpers (`CadVec`, `CadShipGeometry`)
+- Opening wall-split helper (`OpeningDerivation`)
 - Phys mesh / collider DTOs (`CadPhysDocument`)
 
 Schemas and docs live in [novolis-governance](https://github.com/Novolis-Platform/novolis-governance) (`schemas/cad`, `docs/cadjson.md`). UI stays in `Novolis.Avalonia.Cad`.

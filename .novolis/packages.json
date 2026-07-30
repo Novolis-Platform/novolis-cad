@@ -9,6 +9,15 @@
         "global.json"
       ],
       "project": "src/Novolis.Cad.Primitives/Novolis.Cad.Primitives.csproj"
+    },
+    "Novolis.Modeling.Scene": {
+      "paths": [
+        "src/Novolis.Modeling.Scene/**",
+        "Directory.Build.props",
+        "Directory.Packages.props",
+        "global.json"
+      ],
+      "project": "src/Novolis.Modeling.Scene/Novolis.Modeling.Scene.csproj"
     }
   }
 }
