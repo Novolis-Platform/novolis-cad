@@ -77,6 +77,12 @@ public sealed class SceneEvaluator
 
     public LookCache Cache => EnsureBuilt();
 
+    /// <summary>Advances when mesh topology / transforms that affect mesh eval change.</summary>
+    public int MeshGeneration => _meshGeneration;
+
+    /// <summary>Advances when lights/cameras/materials change.</summary>
+    public int LookGeneration => _lookGeneration;
+
     public void Bind(SceneDocument document)
     {
         _document = document ?? throw new ArgumentNullException(nameof(document));
