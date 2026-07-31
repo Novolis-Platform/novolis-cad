@@ -30,10 +30,25 @@ var editable = AssimpMeshImporter.ImportEditable(
 
 Stream overload: `ImportFromStream(stream, ".fbx", options?)`.
 
-## Consumers
+## API
 
-- `Novolis.Avalonia.3D` session action `importmesh` + SceneLab **Import…**
-- CLI tools (e.g. CorellianFreighterBuilder `--import`)
+| API | Purpose |
+|-----|---------|
+| `AssimpMeshImporter.CommonExtensions` | `.fbx`, `.obj`, `.gltf`, `.glb`, `.dae`, `.3ds`, `.blend`, `.stl`, `.ply` |
+| `AssimpMeshImporter.ImportFile(path, options?)` | Merge all scene meshes → `TriangleMesh` |
+| `AssimpMeshImporter.ImportFromStream(stream, formatHintExtension, options?)` | Stream import → `TriangleMesh` |
+| `AssimpMeshImporter.ImportEditable(path, options?)` | Import → `EditableMesh` |
+| `AssimpMeshImporter.ImportEditableFromStream(stream, ext, options?)` | Stream import → `EditableMesh` |
+| `AssimpMeshImporter.IsSupportedExtension(pathOrExtension)` | Extension check |
+| `MeshImportOptions` | `TargetLengthMeters`, `CenterAtOrigin`, `LongestAxisToPositiveZ`, `PreTransformVertices`, `GenerateNormals`, `OptimizeMeshes` |
+
+## Related / dogfood
+
+| Package / app | Notes |
+|---------------|-------|
+| [`Novolis.Modeling.Scene`](../Novolis.Modeling.Scene/README.md) | Scene graph for imported meshes |
+| [`Novolis.Avalonia.3D`](../../novolis-avalonia/src/Novolis.Avalonia.3D/README.md) | `importmesh` + SceneLab Import |
+| [CorellianFreighterBuilder](../../novolis-dogfooding/apps/avalonia/SceneLab/tools/CorellianFreighterBuilder) | CLI `--import` |
 
 ## Policy
 

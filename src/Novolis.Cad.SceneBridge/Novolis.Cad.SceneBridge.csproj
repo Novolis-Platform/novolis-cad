@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Novolis.Cad.SceneBridge</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>Avalonia-free CadDocument → SceneDocument bridge: tessellate solids/walls/spaces into .nov3djson meshes.</Description>
+    <RootNamespace>Novolis.Cad.SceneBridge</RootNamespace>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Novolis.Cad.Primitives" />
+    <PackageReference Include="Novolis.Modeling.Scene" />
+    <PackageReference Include="Novolis.Math.Geometry" />
+  </ItemGroup>
+</Project>

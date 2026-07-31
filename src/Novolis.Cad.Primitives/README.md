@@ -35,3 +35,25 @@ doc.Entities.Add(new CadEntity
 var json = JsonSerializer.Serialize(doc);
 var workspace = CadWorkspaceMapping.Parse("modeling");
 ```
+
+## API
+
+| API | Purpose |
+|-----|---------|
+| `CadDocument` | Root `.cadjson`: `Format`, `Entities`, `Layers`, `Camera`, `UnitScaleMeters` |
+| `CadEntity` | Polymorphic entity by `Kind`; geometry fields (`A`/`B`, `Center`, `Points`, `MeshVertices`/`MeshIndices`) |
+| `CadLayer`, `CadCamera`, `CadGenerator`, `CadTransform` | Document metadata |
+| `CadPhysDocument` | `.cadphys`: `Meshes`, `Colliders`, `BaseDocument` |
+| `CadWorkspace` | Cad, Modeling, Preview |
+| `CadWorkspaceMapping` | `Parse`, `ToStorage`, `ToDisplay`, `FromViewMode`, `ToViewMode` |
+| `CadVec` | `Xz`, `Xyz`, `Plan`, deck helpers, `EnumerateWorldPoints`, `TranslateEntity` |
+| `CadShipGeometry.TryGetBox` | Extract box center/half-extents from entity |
+| `OpeningDerivation.Apply` | Split walls at opening footprints |
+
+## Related / dogfood
+
+| Package / app | Notes |
+|---------------|-------|
+| [`Novolis.Cad.SceneBridge`](../Novolis.Cad.SceneBridge/README.md) | Tessellate `CadDocument` → `.nov3djson` |
+| [`Novolis.Avalonia.Cad`](../../novolis-avalonia/src/Novolis.Avalonia.Cad/README.md) | CAD editor UI |
+| [novolis-governance](https://github.com/Novolis-Platform/novolis-governance) | `schemas/cad`, `docs/cadjson.md` |
