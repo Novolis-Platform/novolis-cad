@@ -7,8 +7,13 @@
   <ItemGroup>
     <PackageReference Include="JetBrains.Annotations" />
     <PackageReference Include="TUnit" />
+    <PackageReference Include="Novolis.Math.Geometry" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Novolis.Cad.Primitives/Novolis.Cad.Primitives.csproj" />
+    <ProjectReference Include="../../src/Novolis.Modeling.Import/Novolis.Modeling.Import.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

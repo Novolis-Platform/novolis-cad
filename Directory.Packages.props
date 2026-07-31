@@ -9,5 +9,6 @@
     <PackageVersion Include="TUnit" Version="1.44.39" />
     <PackageVersion Include="Novolis.Analyzers.StackBoundaries" Version="2026.1.*" />
     <PackageVersion Include="Novolis.Math.Geometry" Version="2026.1.*" />
+    <PackageVersion Include="AssimpNet" Version="5.0.0-beta1" />
   </ItemGroup>
 </Project>

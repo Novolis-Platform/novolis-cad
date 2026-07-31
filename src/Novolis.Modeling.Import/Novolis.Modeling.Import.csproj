@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Novolis.Modeling.Import</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>Assimp-based mesh import (FBX, OBJ, glTF, …) into Novolis.Math.Geometry TriangleMesh / EditableMesh. Native Assimp runtime required.</Description>
+    <RootNamespace>Novolis.Modeling.Import</RootNamespace>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="AssimpNet" />
+    <PackageReference Include="Novolis.Math.Geometry" />
+  </ItemGroup>
+</Project>
