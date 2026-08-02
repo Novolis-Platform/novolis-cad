@@ -8,8 +8,10 @@
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Novolis.Cad.Primitives" />
-    <PackageReference Include="Novolis.Modeling.Scene" />
     <PackageReference Include="Novolis.Math.Geometry" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Novolis.Cad.Primitives\Novolis.Cad.Primitives.csproj" />
+    <ProjectReference Include="..\Novolis.Modeling.Scene\Novolis.Modeling.Scene.csproj" />
   </ItemGroup>
 </Project>
