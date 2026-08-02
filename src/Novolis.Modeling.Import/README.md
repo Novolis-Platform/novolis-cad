@@ -40,6 +40,7 @@ Stream overload: `ImportFromStream(stream, ".fbx", options?)`.
 | `AssimpMeshImporter.ImportEditable(path, options?)` | Import → `EditableMesh` |
 | `AssimpMeshImporter.ImportEditableFromStream(stream, ext, options?)` | Stream import → `EditableMesh` |
 | `AssimpMeshImporter.IsSupportedExtension(pathOrExtension)` | Extension check |
+| `AssimpSkinnedMeshImporter.TryImport(path, out result, options?)` | FBX/skin weights → `AssimpNamedSkinImport` (no pre-transform) |
 | `MeshImportOptions` | `TargetLengthMeters`, `CenterAtOrigin`, `LongestAxisToPositiveZ`, `PreTransformVertices`, `GenerateNormals`, `OptimizeMeshes` |
 
 ## Related / dogfood
