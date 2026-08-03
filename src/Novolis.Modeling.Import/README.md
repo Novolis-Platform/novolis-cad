@@ -1,3 +1,11 @@
+<!-- novolis-pkg-brand:start -->
+<p align="center">
+  <a href="https://github.com/Novolis-Platform/novolis-cad">
+    <img src="https://raw.githubusercontent.com/Novolis-Platform/.github/main/brand/logo-icon.svg" width="72" alt="Novolis"/>
+  </a>
+</p>
+<!-- novolis-pkg-brand:end -->
+
 # Novolis.Modeling.Import
 
 Assimp-backed mesh import for CAD / SceneLab dogfood.
@@ -54,3 +62,13 @@ Stream overload: `ImportFromStream(stream, ".fbx", options?)`.
 ## Policy
 
 PackageReference only (nuget.org AssimpNet + GPR `Novolis.Math.Geometry`). No local feeds.
+
+## Install
+
+```bash
+dotnet add package Novolis.Modeling.Import
+```
+
+**Prerequisites:** [.NET 10 SDK](https://dotnet.microsoft.com/download) (`net10.0`).
+
+

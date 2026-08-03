@@ -1,3 +1,11 @@
+<!-- novolis-pkg-brand:start -->
+<p align="center">
+  <a href="https://github.com/Novolis-Platform/novolis-cad">
+    <img src="https://raw.githubusercontent.com/Novolis-Platform/.github/main/brand/logo-icon.svg" width="72" alt="Novolis"/>
+  </a>
+</p>
+<!-- novolis-pkg-brand:end -->
+
 # Novolis.Modeling.Scene
 
 Mesh-first scene graph for CAD 3D editing and rendering pipelines. Typed nodes, staged evaluation (generators/modifiers → triangles), runtime mesh-edit state, and `.nov3djson` serialization. No Avalonia UI and no LLM transports.
@@ -68,3 +76,4 @@ MeshEditBake.MakeEditable(loaded, evaluator, box.Id);
 | [`Novolis.Modeling.Import`](../Novolis.Modeling.Import/README.md) | Assimp import into editable meshes |
 | [`Novolis.Avalonia.3D`](../../novolis-avalonia/src/Novolis.Avalonia.3D/README.md) | Scene editor UI |
 | [SceneLab](../../novolis-dogfooding/apps/avalonia/SceneLab) | Interactive `.nov3djson` host |
+

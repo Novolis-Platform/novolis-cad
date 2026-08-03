@@ -1,3 +1,11 @@
+<!-- novolis-pkg-brand:start -->
+<p align="center">
+  <a href="https://github.com/Novolis-Platform/novolis-cad">
+    <img src="https://raw.githubusercontent.com/Novolis-Platform/.github/main/brand/logo-icon.svg" width="72" alt="Novolis"/>
+  </a>
+</p>
+<!-- novolis-pkg-brand:end -->
+
 # Novolis.Cad.SceneBridge
 
 Avalonia-free bridge from `.cadjson` (`CadDocument`) to `.nov3djson` (`SceneDocument`). Tessellates solids, walls, and space floor plates; maps materials and copies camera/light entities.
@@ -54,3 +62,4 @@ CadSceneBridge.SaveNov3dJson(cad, "room.nov3djson", options);
 | [`Novolis.Cad.Primitives`](../Novolis.Cad.Primitives/README.md) | Input `CadDocument` DTOs |
 | [`Novolis.Modeling.Scene`](../Novolis.Modeling.Scene/README.md) | Output `SceneDocument` / `.nov3djson` |
 | [`Novolis.Avalonia.Cad`](../../novolis-avalonia/src/Novolis.Avalonia.Cad/README.md) | `exportscene` / `bridgescene` session commands |
+

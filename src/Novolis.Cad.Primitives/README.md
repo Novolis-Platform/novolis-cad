@@ -1,3 +1,11 @@
+<!-- novolis-pkg-brand:start -->
+<p align="center">
+  <a href="https://github.com/Novolis-Platform/novolis-cad">
+    <img src="https://raw.githubusercontent.com/Novolis-Platform/.github/main/brand/logo-icon.svg" width="72" alt="Novolis"/>
+  </a>
+</p>
+<!-- novolis-pkg-brand:end -->
+
 # Novolis.Cad.Primitives
 
 Avalonia-free CAD interchange types for Novolis `.cadjson` / `.cadphys` documents.
@@ -57,3 +65,4 @@ var workspace = CadWorkspaceMapping.Parse("modeling");
 | [`Novolis.Cad.SceneBridge`](../Novolis.Cad.SceneBridge/README.md) | Tessellate `CadDocument` → `.nov3djson` |
 | [`Novolis.Avalonia.Cad`](../../novolis-avalonia/src/Novolis.Avalonia.Cad/README.md) | CAD editor UI |
 | [novolis-governance](https://github.com/Novolis-Platform/novolis-governance) | `schemas/cad`, `docs/cadjson.md` |
+
