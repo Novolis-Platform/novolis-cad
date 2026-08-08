@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using Assimp;
 using Novolis.Math.Geometry;
@@ -23,6 +24,11 @@ public sealed class AssimpNamedSkinImport
 /// Assimp import that preserves bone weights when present (does not use PreTransformVertices,
 /// which would destroy the skin). Returns null when the file has no skinned meshes.
 /// </summary>
+/// <remarks>
+/// Org coverage excludes this type: full skin paths need native Assimp + skinned FBX fixtures
+/// (headless CI cannot reliably exercise bone-weight import beyond guard clauses).
+/// </remarks>
+[ExcludeFromCodeCoverage]
 public static class AssimpSkinnedMeshImporter
 {
     public static bool TryImport(string path, out AssimpNamedSkinImport? result, MeshImportOptions? options = null)
