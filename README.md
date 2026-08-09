@@ -69,6 +69,7 @@ Schemas: [novolis-governance](https://github.com/Novolis-Platform/novolis-govern
 ```bash
 dotnet add package Novolis.Cad.Primitives
 dotnet add package Novolis.Cad.Blueprint
+dotnet add package Novolis.Cad.Evaluation
 dotnet add package Novolis.Cad.SceneBridge
 ```
 
