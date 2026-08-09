@@ -49,7 +49,7 @@ public sealed class CadDocument
 
 public sealed class CadGenerator
 {
-    public string Name { get; set; } = "Novolis.Avalonia.Cad";
+    public string Name { get; set; } = "Novolis.Cad";
 
     public string Version { get; set; } = "2026.1.0";
 }

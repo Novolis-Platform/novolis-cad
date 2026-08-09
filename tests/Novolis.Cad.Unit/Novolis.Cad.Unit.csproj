@@ -8,13 +8,13 @@
     <PackageReference Include="JetBrains.Annotations" />
     <PackageReference Include="TUnit" />
     <PackageReference Include="Novolis.Math.Geometry" />
+    <PackageReference Include="Novolis.3D.Scene" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Novolis.Cad.Primitives/Novolis.Cad.Primitives.csproj" />
     <ProjectReference Include="../../src/Novolis.Cad.Blueprint/Novolis.Cad.Blueprint.csproj" />
     <ProjectReference Include="../../src/Novolis.Cad.SceneBridge/Novolis.Cad.SceneBridge.csproj" />
-    <ProjectReference Include="../../src/Novolis.Modeling.Scene/Novolis.Modeling.Scene.csproj" />
-    <ProjectReference Include="../../src/Novolis.Modeling.Import/Novolis.Modeling.Import.csproj" />
+    <ProjectReference Include="../../src/Novolis.Cad.Evaluation/Novolis.Cad.Evaluation.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />

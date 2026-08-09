@@ -3,8 +3,7 @@
     <Project Path="src/Novolis.Cad.Primitives/Novolis.Cad.Primitives.csproj" />
     <Project Path="src/Novolis.Cad.Blueprint/Novolis.Cad.Blueprint.csproj" />
     <Project Path="src/Novolis.Cad.SceneBridge/Novolis.Cad.SceneBridge.csproj" />
-    <Project Path="src/Novolis.Modeling.Scene/Novolis.Modeling.Scene.csproj" />
-    <Project Path="src/Novolis.Modeling.Import/Novolis.Modeling.Import.csproj" />
+    <Project Path="src/Novolis.Cad.Evaluation/Novolis.Cad.Evaluation.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Novolis.Cad.Unit/Novolis.Cad.Unit.csproj" />

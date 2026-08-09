@@ -16,7 +16,7 @@ Avalonia-free bridge from `.cadjson` (`CadDocument`) to `.nov3djson` (`SceneDocu
 dotnet add package Novolis.Cad.SceneBridge
 ```
 
-**Prerequisites:** [.NET 10 SDK](https://dotnet.microsoft.com/download) (`net10.0`). References `Novolis.Cad.Primitives`, `Novolis.Modeling.Scene`, `Novolis.Math.Geometry`.
+**Prerequisites:** [.NET 10 SDK](https://dotnet.microsoft.com/download) (`net10.0`). References `Novolis.Cad.Primitives`, `Novolis.3D.Scene`, `Novolis.Math.Geometry`.
 
 ## Quick start
 
@@ -24,7 +24,7 @@ dotnet add package Novolis.Cad.SceneBridge
 using System.Text.Json;
 using Novolis.Cad.Primitives;
 using Novolis.Cad.SceneBridge;
-using Novolis.Modeling.Scene;
+using Novolis._3D;
 
 var cad = JsonSerializer.Deserialize<CadDocument>(File.ReadAllText("room.cadjson"))!;
 
@@ -60,6 +60,6 @@ CadSceneBridge.SaveNov3dJson(cad, "room.nov3djson", options);
 | Package / app | Notes |
 |---------------|-------|
 | [`Novolis.Cad.Primitives`](../Novolis.Cad.Primitives/README.md) | Input `CadDocument` DTOs |
-| [`Novolis.Modeling.Scene`](../Novolis.Modeling.Scene/README.md) | Output `SceneDocument` / `.nov3djson` |
+| [`Novolis.3D.Scene`](https://github.com/Novolis-Platform/novolis-avalonia/tree/main/src/Novolis.3D.Scene) | Output `SceneDocument` / `.nov3djson` |
 | [`Novolis.Avalonia.Cad`](../../novolis-avalonia/src/Novolis.Avalonia.Cad/README.md) | `exportscene` / `bridgescene` session commands |
 

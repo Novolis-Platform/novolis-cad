@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Novolis.Cad.Evaluation</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>Avalonia-free staged CAD evaluation (CadDocument → meshes / phys): CadModelEvaluator, CadPhysExporter, EntityBounds.</Description>
+    <RootNamespace>Novolis.Cad.Evaluation</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Novolis.Math.Geometry" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Novolis.Cad.Primitives\Novolis.Cad.Primitives.csproj" />
+    <ProjectReference Include="..\Novolis.Cad.SceneBridge\Novolis.Cad.SceneBridge.csproj" />
+  </ItemGroup>
+</Project>

@@ -43,16 +43,15 @@
 |---------|---------|----------------|
 | `Novolis.Cad.Primitives` | `dotnet add package Novolis.Cad.Primitives` | [README](https://github.com/Novolis-Platform/novolis-cad/blob/main/src/Novolis.Cad.Primitives/README.md) |
 | `Novolis.Cad.Blueprint` | `dotnet add package Novolis.Cad.Blueprint` | [README](https://github.com/Novolis-Platform/novolis-cad/blob/main/src/Novolis.Cad.Blueprint/README.md) |
+| `Novolis.Cad.Evaluation` | `dotnet add package Novolis.Cad.Evaluation` | [README](https://github.com/Novolis-Platform/novolis-cad/blob/main/src/Novolis.Cad.Evaluation/README.md) |
 | `Novolis.Cad.SceneBridge` | `dotnet add package Novolis.Cad.SceneBridge` | [README](https://github.com/Novolis-Platform/novolis-cad/blob/main/src/Novolis.Cad.SceneBridge/README.md) |
-| `Novolis.Modeling.Import` | `dotnet add package Novolis.Modeling.Import` | [README](https://github.com/Novolis-Platform/novolis-cad/blob/main/src/Novolis.Modeling.Import/README.md) |
-| `Novolis.Modeling.Scene` | `dotnet add package Novolis.Modeling.Scene` | [README](https://github.com/Novolis-Platform/novolis-cad/blob/main/src/Novolis.Modeling.Scene/README.md) |
 
 For NuGet.org and Visual Studio, the **embedded** README.md inside each package is authoritative.
 
 <!-- novolis-package-index:end -->
 # novolis-cad
 
-Avalonia-free CAD interchange packages for Novolis.
+Avalonia-free CAD interchange packages for Novolis. Mesh scene graphs (`.nov3djson`) live in [`Novolis.3D.Scene`](https://github.com/Novolis-Platform/novolis-avalonia/tree/main/src/Novolis.3D.Scene) / [`Novolis.3D.Import`](https://github.com/Novolis-Platform/novolis-avalonia/tree/main/src/Novolis.3D.Import).
 
 ## Packages
 
@@ -60,9 +59,8 @@ Avalonia-free CAD interchange packages for Novolis.
 |---------|------|
 | [`Novolis.Cad.Primitives`](src/Novolis.Cad.Primitives/README.md) | `.cadjson` / `.cadphys` DTOs, workspace enums, vec helpers |
 | [`Novolis.Cad.Blueprint`](src/Novolis.Cad.Blueprint/README.md) | `CadBlueprint` companion — walls, interiors, exteriors, openings + smart sheets |
-| [`Novolis.Modeling.Scene`](src/Novolis.Modeling.Scene/README.md) | Mesh-first scene graph (`.nov3djson`), evaluation, mesh editing |
+| [`Novolis.Cad.Evaluation`](src/Novolis.Cad.Evaluation/README.md) | Staged CadDocument eval + phys export |
 | [`Novolis.Cad.SceneBridge`](src/Novolis.Cad.SceneBridge/README.md) | `CadDocument` → `SceneDocument` tessellation bridge |
-| [`Novolis.Modeling.Import`](src/Novolis.Modeling.Import/README.md) | Assimp-backed mesh import (FBX, OBJ, glTF, …) → `EditableMesh` |
 
 Schemas: [novolis-governance](https://github.com/Novolis-Platform/novolis-governance) (`schemas/cad`). UI editor: [Novolis.Avalonia.Cad](https://github.com/Novolis-Platform/novolis-avalonia/tree/main/src/Novolis.Avalonia.Cad).
 
@@ -71,9 +69,7 @@ Schemas: [novolis-governance](https://github.com/Novolis-Platform/novolis-govern
 ```bash
 dotnet add package Novolis.Cad.Primitives
 dotnet add package Novolis.Cad.Blueprint
-dotnet add package Novolis.Modeling.Scene
 dotnet add package Novolis.Cad.SceneBridge
-dotnet add package Novolis.Modeling.Import
 ```
 
 **Prerequisites:** [.NET 10 SDK](https://dotnet.microsoft.com/download) (`net10.0`); `Novolis.*` packages from GitHub Packages at `2026.1.*`.
@@ -84,7 +80,7 @@ dotnet add package Novolis.Modeling.Import
 using System.Text.Json;
 using Novolis.Cad.Primitives;
 using Novolis.Cad.SceneBridge;
-using Novolis.Modeling.Scene;
+using Novolis._3D;
 
 var cad = JsonSerializer.Deserialize<CadDocument>(File.ReadAllText("room.cadjson"))!;
 var scene = CadSceneBridge.ToSceneDocument(cad, new CadSceneBridgeOptions { EnsureStudioLights = true });
@@ -94,11 +90,11 @@ SceneSerializer.Save(scene, "room.nov3djson");
 ## Build
 
 ```powershell
-dotnet build Novolis.Cad.slnx
-dotnet test Novolis.Cad.slnx
+dotnet build d:\novolis\novolis-cad\Novolis.Cad.slnx
+dotnet test d:\novolis\novolis-cad\Novolis.Cad.slnx
 ```
 
-Cross-repo local iteration: open `Novolis.Platform.slnx` (ProjectReference mode). Do not use local NuGet folder feeds.
+Cross-repo local iteration: open `d:\novolis\Novolis.Platform.slnx` (ProjectReference mode). Do not use local NuGet folder feeds.
 
 ## Dogfood
 
@@ -107,4 +103,3 @@ Cross-repo local iteration: open `Novolis.Platform.slnx` (ProjectReference mode)
 | [Novolis.Avalonia.Cad](../novolis-avalonia/src/Novolis.Avalonia.Cad) | Draft Studio / CAD Studio 3D editor |
 | [SceneLab](../novolis-dogfooding/apps/avalonia/SceneLab) | `.nov3djson` preview and import |
 | [CorellianFreighterBuilder](../novolis-dogfooding/apps/avalonia/SceneLab/tools/CorellianFreighterBuilder) | CLI `--import` mesh pipeline |
-

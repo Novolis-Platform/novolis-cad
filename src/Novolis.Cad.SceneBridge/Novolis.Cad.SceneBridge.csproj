@@ -2,16 +2,16 @@
   <PropertyGroup>
     <PackageId>Novolis.Cad.SceneBridge</PackageId>
     <IsPackable>true</IsPackable>
-    <Description>Avalonia-free CadDocument → SceneDocument bridge: tessellate solids/walls/spaces into .nov3djson meshes.</Description>
+    <Description>Avalonia-free CadDocument → SceneDocument bridge: tessellate solids/walls/spaces into .nov3djson meshes (Novolis.3D.Scene).</Description>
     <RootNamespace>Novolis.Cad.SceneBridge</RootNamespace>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Novolis.Math.Geometry" />
+    <PackageReference Include="Novolis.3D.Scene" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Novolis.Cad.Primitives\Novolis.Cad.Primitives.csproj" />
-    <ProjectReference Include="..\Novolis.Modeling.Scene\Novolis.Modeling.Scene.csproj" />
   </ItemGroup>
 </Project>

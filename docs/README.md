@@ -17,13 +17,14 @@ Published docs: [https://novolis-platform.github.io/.github/novolis-cad/](https:
 | Package |
 | --- |
 | `Novolis.Cad.Primitives` |
+| `Novolis.Cad.Blueprint` |
+| `Novolis.Cad.Evaluation` |
 | `Novolis.Cad.SceneBridge` |
-| `Novolis.Modeling.Import` |
-| `Novolis.Modeling.Scene` |
+
+3D scene graph packages (`Novolis.3D.Scene`, `Novolis.3D.Import`) ship from [novolis-avalonia](https://github.com/Novolis-Platform/novolis-avalonia).
 
 ## More
 
 - [Org docs catalog](https://novolis-platform.github.io/.github/)
 - [Repository README](../README.md)
 - [Governance](https://github.com/Novolis-Platform/novolis-governance)
-

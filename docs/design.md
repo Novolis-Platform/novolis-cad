@@ -6,4 +6,6 @@
 - String `Kind` entity bag (compatible with governance `novolis.cad.schema.json`)
 - Light dependency on `Novolis.Math.Geometry` for NURBS tessellation in `CadVec`
 
-Hard-surface evaluation (`CadModelEvaluator`) remains in Avalonia.Cad until a future `Novolis.Cad.Evaluation` extract. Mesh scene authoring (`.nov3djson`) stays in `Novolis.Modeling.Scene`.
+`Novolis.Cad.Evaluation` owns staged `CadDocument` evaluation and phys export (Avalonia-free).
+
+`Novolis.Cad.SceneBridge` projects `.cadjson` into `Novolis.3D.Scene` (`SceneDocument` / `.nov3djson`). Mesh scene authoring lives in **novolis-avalonia** (`Novolis.3D.Scene`, `Novolis.3D.Import`), not in this repo.
