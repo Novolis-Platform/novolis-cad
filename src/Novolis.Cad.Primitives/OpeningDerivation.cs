@@ -33,6 +33,9 @@ public static class OpeningDerivation
             if (right is not null)
                 toAdd.Add(right);
 
+            // Opening still needs a live host wall id after the baseline is split away.
+            opening.HostWallId = left?.Id ?? right?.Id;
+
             // Retarget subsequent openings that pointed at the removed wall.
             walls.Remove(host);
             if (left is not null)
