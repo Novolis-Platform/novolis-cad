@@ -10,14 +10,34 @@
       ],
       "project": "src/Novolis.Cad.Primitives/Novolis.Cad.Primitives.csproj"
     },
-    "Novolis.Modeling.Scene": {
+    "Novolis.Cad.Blueprint": {
       "paths": [
-        "src/Novolis.Modeling.Scene/**",
+        "src/Novolis.Cad.Blueprint/**",
         "Directory.Build.props",
         "Directory.Packages.props",
         "global.json"
       ],
-      "project": "src/Novolis.Modeling.Scene/Novolis.Modeling.Scene.csproj"
+      "project": "src/Novolis.Cad.Blueprint/Novolis.Cad.Blueprint.csproj"
+    },
+    "Novolis.Cad.SceneBridge": {
+      "paths": [
+        "src/Novolis.Cad.SceneBridge/**",
+        "tests/Novolis.Cad.Unit/**",
+        "Directory.Build.props",
+        "Directory.Packages.props",
+        "global.json"
+      ],
+      "project": "src/Novolis.Cad.SceneBridge/Novolis.Cad.SceneBridge.csproj"
+    },
+    "Novolis.Cad.Evaluation": {
+      "paths": [
+        "src/Novolis.Cad.Evaluation/**",
+        "tests/Novolis.Cad.Unit/**",
+        "Directory.Build.props",
+        "Directory.Packages.props",
+        "global.json"
+      ],
+      "project": "src/Novolis.Cad.Evaluation/Novolis.Cad.Evaluation.csproj"
     }
   }
 }
