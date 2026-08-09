@@ -42,6 +42,7 @@
 | Package | Install | Package README |
 |---------|---------|----------------|
 | `Novolis.Cad.Primitives` | `dotnet add package Novolis.Cad.Primitives` | [README](https://github.com/Novolis-Platform/novolis-cad/blob/main/src/Novolis.Cad.Primitives/README.md) |
+| `Novolis.Cad.Blueprint` | `dotnet add package Novolis.Cad.Blueprint` | [README](https://github.com/Novolis-Platform/novolis-cad/blob/main/src/Novolis.Cad.Blueprint/README.md) |
 | `Novolis.Cad.SceneBridge` | `dotnet add package Novolis.Cad.SceneBridge` | [README](https://github.com/Novolis-Platform/novolis-cad/blob/main/src/Novolis.Cad.SceneBridge/README.md) |
 | `Novolis.Modeling.Import` | `dotnet add package Novolis.Modeling.Import` | [README](https://github.com/Novolis-Platform/novolis-cad/blob/main/src/Novolis.Modeling.Import/README.md) |
 | `Novolis.Modeling.Scene` | `dotnet add package Novolis.Modeling.Scene` | [README](https://github.com/Novolis-Platform/novolis-cad/blob/main/src/Novolis.Modeling.Scene/README.md) |
@@ -58,6 +59,7 @@ Avalonia-free CAD interchange packages for Novolis.
 | Package | Role |
 |---------|------|
 | [`Novolis.Cad.Primitives`](src/Novolis.Cad.Primitives/README.md) | `.cadjson` / `.cadphys` DTOs, workspace enums, vec helpers |
+| [`Novolis.Cad.Blueprint`](src/Novolis.Cad.Blueprint/README.md) | `CadBlueprint` companion — walls, interiors, exteriors, openings + smart sheets |
 | [`Novolis.Modeling.Scene`](src/Novolis.Modeling.Scene/README.md) | Mesh-first scene graph (`.nov3djson`), evaluation, mesh editing |
 | [`Novolis.Cad.SceneBridge`](src/Novolis.Cad.SceneBridge/README.md) | `CadDocument` → `SceneDocument` tessellation bridge |
 | [`Novolis.Modeling.Import`](src/Novolis.Modeling.Import/README.md) | Assimp-backed mesh import (FBX, OBJ, glTF, …) → `EditableMesh` |
@@ -68,6 +70,7 @@ Schemas: [novolis-governance](https://github.com/Novolis-Platform/novolis-govern
 
 ```bash
 dotnet add package Novolis.Cad.Primitives
+dotnet add package Novolis.Cad.Blueprint
 dotnet add package Novolis.Modeling.Scene
 dotnet add package Novolis.Cad.SceneBridge
 dotnet add package Novolis.Modeling.Import

@@ -16,7 +16,9 @@ Avalonia-free CAD interchange types for Novolis `.cadjson` / `.cadphys` document
 - Opening wall-split helper (`OpeningDerivation`)
 - Phys mesh / collider DTOs (`CadPhysDocument`)
 
-Schemas and docs live in [novolis-governance](https://github.com/Novolis-Platform/novolis-governance) (`schemas/cad`, `docs/cadjson.md`). UI stays in `Novolis.Avalonia.Cad`.
+Contextual companion **`CadBlueprint`** (walls / interiors / exteriors / openings + smart sheets) lives in [`Novolis.Cad.Blueprint`](../Novolis.Cad.Blueprint/README.md).
+
+Schemas and docs live in [novolis-governance](https://github.com/Novolis-Platform/novolis-governance) (`schemas/cad`, `docs/cadjson.md`, `docs/smart-blueprint.md`). UI stays in `Novolis.Avalonia.Cad`.
 
 ## Install
 

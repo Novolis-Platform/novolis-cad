@@ -2,7 +2,7 @@
   <PropertyGroup>
     <PackageId>Novolis.Cad.Primitives</PackageId>
     <IsPackable>true</IsPackable>
-    <Description>Avalonia-free CAD interchange DTOs for .cadjson / .cadphys (documents, entities, workspace enums, vec helpers).</Description>
+    <Description>Avalonia-free CAD interchange DTOs for .cadjson / .cadphys (documents, entities, workspace enums, vec helpers). Contextual CadBlueprint lives in Novolis.Cad.Blueprint.</Description>
     <RootNamespace>Novolis.Cad.Primitives</RootNamespace>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>

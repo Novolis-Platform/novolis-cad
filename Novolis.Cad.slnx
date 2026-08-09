@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Novolis.Cad.Primitives/Novolis.Cad.Primitives.csproj" />
+    <Project Path="src/Novolis.Cad.Blueprint/Novolis.Cad.Blueprint.csproj" />
     <Project Path="src/Novolis.Cad.SceneBridge/Novolis.Cad.SceneBridge.csproj" />
     <Project Path="src/Novolis.Modeling.Scene/Novolis.Modeling.Scene.csproj" />
     <Project Path="src/Novolis.Modeling.Import/Novolis.Modeling.Import.csproj" />

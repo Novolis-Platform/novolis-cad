@@ -11,6 +11,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Novolis.Cad.Primitives/Novolis.Cad.Primitives.csproj" />
+    <ProjectReference Include="../../src/Novolis.Cad.Blueprint/Novolis.Cad.Blueprint.csproj" />
     <ProjectReference Include="../../src/Novolis.Cad.SceneBridge/Novolis.Cad.SceneBridge.csproj" />
     <ProjectReference Include="../../src/Novolis.Modeling.Scene/Novolis.Modeling.Scene.csproj" />
     <ProjectReference Include="../../src/Novolis.Modeling.Import/Novolis.Modeling.Import.csproj" />
