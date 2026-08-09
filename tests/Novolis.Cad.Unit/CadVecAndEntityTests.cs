@@ -96,6 +96,18 @@ public sealed class CadVecAndEntityTests
             Points = [CadVec.Xyz(0, 0, 0), CadVec.Xyz(1, 1, 1)],
         };
         await Assert.That(CadVec.MatchesLevel(shipBox, CadVec.DeckHeightMeters, 0.01f)).IsTrue();
+
+        // Deck-0 passage-style volume (center Y ≠ 0) must still match IsolateLevel at elevation 0.
+        var deck0Passage = new CadEntity
+        {
+            Kind = "box",
+            Deck = 0,
+            Center = [0f, 1.1f, 0f],
+            HalfExtents = [0.6f, 1.1f, 10f],
+            Points = [CadVec.Xyz(0, 0, -10f), CadVec.Xyz(0, 0, 10f)],
+        };
+        await Assert.That(CadVec.MatchesLevel(deck0Passage, 0f, 0.05f)).IsTrue();
+        await Assert.That(CadVec.IsDeckBandedBox(deck0Passage)).IsTrue();
     }
 
     [Test]

@@ -39,8 +39,8 @@ public static class CadVec
         "spline" when entity.FitPoints is { Count: > 0 } => To(entity.FitPoints[0]).Y,
         "spline" when entity.ControlPoints is { Count: > 0 } => To(entity.ControlPoints[0]).Y,
         "box" when CadShipGeometry.TryGetBox(entity, out var boxCenter, out _) =>
-            // Prefer deck banding for ship boxes; fall back to geometric center.
-            entity.Deck != 0 || entity.Points is { Count: >= 2 }
+            // Prefer deck banding for stamped ship boxes (incl. deck 0). Analytic CAD boxes keep geometric Y.
+            IsDeckBandedBox(entity)
                 ? entity.Deck * DeckHeightMeters
                 : boxCenter.Y,
         "box" or "wedge" or "cylinder" or "cone" or "sphere" => To(entity.Center).Y,
@@ -50,14 +50,22 @@ public static class CadVec
     public static bool MatchesLevel(CadEntity entity, float elevation, float tolerance)
     {
         var kind = entity.Kind.ToLowerInvariant();
-        if (kind is "wall" or "space" or "opening"
-            || (kind == "box" && entity.Points is { Count: >= 2 }))
+        if (kind is "wall" or "space" or "opening" || (kind == "box" && IsDeckBandedBox(entity)))
         {
             return entity.Deck == DeckFromElevation(elevation);
         }
 
         return MathF.Abs(ElevationOf(entity) - elevation) <= System.Math.Max(0.001f, tolerance);
     }
+
+    /// <summary>
+    /// Ship volumes stamp <see cref="CadEntity.Points"/> and/or opening metadata so deck 0 is not
+    /// mistaken for an unset deck (geometric center Y would fail IsolateLevel at elevation 0).
+    /// </summary>
+    public static bool IsDeckBandedBox(CadEntity entity) =>
+        entity.Points is { Count: >= 2 }
+        || !string.IsNullOrWhiteSpace(entity.OpeningType)
+        || (entity.Properties is not null && entity.Properties.ContainsKey("shipDeckBanded"));
 
     public static void Translate(float[]? v, float dx, float dy, float dz)
     {
