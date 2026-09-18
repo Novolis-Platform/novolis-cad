@@ -4,7 +4,7 @@
     <CentralPackageFloatingVersionsEnabled>true</CentralPackageFloatingVersionsEnabled>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.203" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.401" />
     <PackageVersion Include="JetBrains.Annotations" Version="2025.2.4" />
     <PackageVersion Include="TUnit" Version="1.44.39" />
     <PackageVersion Include="Novolis.Analyzers.StackBoundaries" Version="2026.1.*" />
