@@ -8,7 +8,7 @@
     <PackageReference Include="JetBrains.Annotations" />
     <PackageReference Include="TUnit" />
     <PackageReference Include="Novolis.Math.Geometry" />
-    <PackageReference Include="Novolis.3D.Scene" />
+    <PackageReference Include="Novolis.ThreeD.Scene" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Novolis.Cad.Primitives/Novolis.Cad.Primitives.csproj" />

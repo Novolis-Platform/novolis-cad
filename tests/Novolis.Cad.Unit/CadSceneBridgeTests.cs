@@ -2,7 +2,7 @@ using System.Numerics;
 using Novolis.Cad.Primitives;
 using Novolis.Cad.SceneBridge;
 using Novolis.Cad.SceneBridge.Tessellation;
-using Novolis._3D;
+using Novolis.ThreeD;
 
 namespace Novolis.Cad.Unit;
 

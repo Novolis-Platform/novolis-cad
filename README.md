@@ -41,9 +41,9 @@
 
 | Package | Install | Package README |
 |---------|---------|----------------|
-| `Novolis.Cad.Primitives` | `dotnet add package Novolis.Cad.Primitives` | [README](https://github.com/Novolis-Platform/novolis-cad/blob/main/src/Novolis.Cad.Primitives/README.md) |
 | `Novolis.Cad.Blueprint` | `dotnet add package Novolis.Cad.Blueprint` | [README](https://github.com/Novolis-Platform/novolis-cad/blob/main/src/Novolis.Cad.Blueprint/README.md) |
 | `Novolis.Cad.Evaluation` | `dotnet add package Novolis.Cad.Evaluation` | [README](https://github.com/Novolis-Platform/novolis-cad/blob/main/src/Novolis.Cad.Evaluation/README.md) |
+| `Novolis.Cad.Primitives` | `dotnet add package Novolis.Cad.Primitives` | [README](https://github.com/Novolis-Platform/novolis-cad/blob/main/src/Novolis.Cad.Primitives/README.md) |
 | `Novolis.Cad.SceneBridge` | `dotnet add package Novolis.Cad.SceneBridge` | [README](https://github.com/Novolis-Platform/novolis-cad/blob/main/src/Novolis.Cad.SceneBridge/README.md) |
 
 For NuGet.org and Visual Studio, the **embedded** README.md inside each package is authoritative.
@@ -51,7 +51,7 @@ For NuGet.org and Visual Studio, the **embedded** README.md inside each package 
 <!-- novolis-package-index:end -->
 # novolis-cad
 
-Avalonia-free CAD interchange packages for Novolis. Mesh scene graphs (`.nov3djson`) live in [`Novolis.3D.Scene`](https://github.com/Novolis-Platform/novolis-avalonia/tree/main/src/Novolis.3D.Scene) / [`Novolis.3D.Import`](https://github.com/Novolis-Platform/novolis-avalonia/tree/main/src/Novolis.3D.Import).
+Avalonia-free CAD interchange packages for Novolis. Mesh scene graphs (`.nov3djson`) live in [`Novolis.ThreeD.Scene`](https://github.com/Novolis-Platform/novolis-3d/tree/main/src/Novolis.ThreeD.Scene) / [`Novolis.ThreeD.Import.Assimp`](https://github.com/Novolis-Platform/novolis-3d/tree/main/src/Novolis.ThreeD.Import.Assimp).
 
 ## Packages
 
@@ -81,7 +81,7 @@ dotnet add package Novolis.Cad.SceneBridge
 using System.Text.Json;
 using Novolis.Cad.Primitives;
 using Novolis.Cad.SceneBridge;
-using Novolis._3D;
+using Novolis.ThreeD;
 
 var cad = JsonSerializer.Deserialize<CadDocument>(File.ReadAllText("room.cadjson"))!;
 var scene = CadSceneBridge.ToSceneDocument(cad, new CadSceneBridgeOptions { EnsureStudioLights = true });
