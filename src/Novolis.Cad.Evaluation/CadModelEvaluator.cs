@@ -5,38 +5,6 @@ using Novolis.Cad.SceneBridge.Tessellation;
 
 namespace Novolis.Cad.Evaluation;
 
-public enum CadEvalStage
-{
-    Cad,
-    Mesh,
-    Modeling,
-    Scene,
-    Preview,
-}
-
-public sealed record EvaluatedInstance(Guid SourceId, Matrix4x4 Transform, EditableMesh? Mesh);
-
-public sealed class CadEvaluationCache
-{
-    public Dictionary<Guid, EditableMesh> CadMeshes { get; } = new();
-
-    public Dictionary<Guid, EditableMesh> ModeledMeshes { get; } = new();
-
-    public List<EvaluatedInstance> Instances { get; } = [];
-
-    public List<CadEntity> Lights { get; } = [];
-
-    public List<CadEntity> Cameras { get; } = [];
-
-    public List<CadEntity> Materials { get; } = [];
-
-    public int CadRevision { get; set; }
-
-    public int MeshRevision { get; set; }
-
-    public int PreviewRevision { get; set; }
-}
-
 /// <summary>Staged evaluator: CAD solids → MeshFromSolid → modifiers → instances → preview nodes.</summary>
 public sealed class CadModelEvaluator
 {
