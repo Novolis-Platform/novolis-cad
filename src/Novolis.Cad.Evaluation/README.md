@@ -1,9 +1,7 @@
 <!-- novolis-pkg-brand:start -->
-<p align="center">
-  <a href="https://github.com/Novolis-Platform/novolis-cad">
-    <img src="https://raw.githubusercontent.com/Novolis-Platform/.github/main/brand/logo-icon.svg" width="72" alt="Novolis"/>
-  </a>
-</p>
+[![Novolis](https://raw.githubusercontent.com/Novolis-Platform/.github/main/brand/logo-icon.png)](https://novolis-platform.github.io/.github/novolis-cad/)
+
+[Novolis](https://github.com/Novolis-Platform) · [Docs](https://novolis-platform.github.io/.github/novolis-cad/) · [Source](https://github.com/Novolis-Platform/novolis-cad)
 <!-- novolis-pkg-brand:end -->
 
 # Novolis.Cad.Evaluation
