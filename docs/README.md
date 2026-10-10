@@ -21,7 +21,7 @@ Published docs: [https://novolis-platform.github.io/.github/novolis-cad/](https:
 | `Novolis.Cad.Evaluation` |
 | `Novolis.Cad.SceneBridge` |
 
-3D scene graph packages (`Novolis.ThreeD.Scene`, `Novolis.ThreeD.Import.Assimp`) ship from [novolis-avalonia](https://github.com/Novolis-Platform/novolis-avalonia).
+3D scene graph packages (`Novolis.Modeling.Scene`, `Novolis.Modeling.Import.Assimp`) ship from [novolis-avalonia](https://github.com/Novolis-Platform/novolis-avalonia).
 
 ## More
 

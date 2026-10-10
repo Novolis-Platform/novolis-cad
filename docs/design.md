@@ -8,4 +8,4 @@
 
 `Novolis.Cad.Evaluation` owns staged `CadDocument` evaluation and phys export (Avalonia-free).
 
-`Novolis.Cad.SceneBridge` projects `.cadjson` into `Novolis.ThreeD.Scene` (`SceneDocument` / `.nov3djson`). Mesh scene authoring lives in **novolis-avalonia** (`Novolis.ThreeD.Scene`, `Novolis.ThreeD.Import.Assimp`), not in this repo.
+`Novolis.Cad.SceneBridge` projects `.cadjson` into `Novolis.Modeling.Scene` (`SceneDocument` / `.nov3djson`). Mesh scene authoring lives in **novolis-avalonia** (`Novolis.Modeling.Scene`, `Novolis.Modeling.Import.Assimp`), not in this repo.
