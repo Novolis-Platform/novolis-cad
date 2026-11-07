@@ -24,6 +24,9 @@ public static class OpeningDerivation
                 continue;
 
             opening.HostWallId = host.Id;
+            // Dedicated hatch hosts are already the clear opening — do not split them.
+            if (host.Name?.StartsWith("hatch-host-", StringComparison.OrdinalIgnoreCase) == true)
+                continue;
             if (!TrySplitWall(host, opening, out var left, out var right))
                 continue;
 
@@ -92,7 +95,11 @@ public static class OpeningDerivation
         t = System.Math.Clamp(t, 0f, len);
 
         var halfGap = EstimateHalfGap(opening, dir);
-        halfGap = System.Math.Clamp(halfGap, 0.4f, System.Math.Min(2.2f, len * 0.45f));
+        // Short walls can make len*0.45 < 0.4 — Clamp(min,max) then throws.
+        var maxHalf = System.Math.Min(2.2f, len * 0.45f);
+        if (maxHalf < 0.2f)
+            return false;
+        halfGap = System.Math.Clamp(halfGap, System.Math.Min(0.4f, maxHalf), maxHalf);
 
         var t0 = System.Math.Max(0f, t - halfGap);
         var t1 = System.Math.Min(len, t + halfGap);
