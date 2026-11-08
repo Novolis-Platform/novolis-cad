@@ -9,9 +9,17 @@ namespace Novolis.Cad.Blueprint;
 /// </summary>
 public static class CadBlueprintProjector
 {
-    public static CadBlueprint FromCadDocument(CadDocument doc, string? context = null, string? cadDocumentHref = null)
+    public static CadBlueprint FromCadDocument(CadDocument doc, string? context = null, string? cadDocumentHref = null) =>
+        FromCadDocumentWithDiagnostics(doc, context, cadDocumentHref).Blueprint;
+
+    /// <summary>
+    /// Same as <see cref="FromCadDocument"/> but surfaces lift diagnostics (skipped kinds, missing footprints).
+    /// </summary>
+    public static (CadBlueprint Blueprint, IReadOnlyList<CadBlueprintDiagnostic> Diagnostics)
+        FromCadDocumentWithDiagnostics(CadDocument doc, string? context = null, string? cadDocumentHref = null)
     {
         ArgumentNullException.ThrowIfNull(doc);
+        var diagnostics = new List<CadBlueprintDiagnostic>();
 
         var bp = new CadBlueprint
         {
@@ -52,6 +60,7 @@ public static class CadBlueprintProjector
             });
         }
 
+        var skipped = 0;
         foreach (var e in doc.Entities)
         {
             switch (e.Kind.ToLowerInvariant())
@@ -60,19 +69,43 @@ public static class CadBlueprintProjector
                     bp.Walls.Add(ToWall(e, layerName));
                     break;
                 case "space":
-                    bp.Spaces.Add(ToSpace(e, layerName));
+                {
+                    var space = ToSpace(e, layerName);
+                    if (space.Footprint is null || space.Footprint.Count < 3)
+                    {
+                        diagnostics.Add(new CadBlueprintDiagnostic(
+                            CadBlueprintDiagnosticSeverity.Warning,
+                            "BP200",
+                            $"Space '{space.Name}' lifted without footprint.",
+                            $"entities/{e.Id}"));
+                    }
+
+                    bp.Spaces.Add(space);
                     break;
+                }
                 case "opening":
                     bp.Openings.Add(ToOpening(e, layerName));
                     break;
                 case "box" when LooksLikeShell(e):
                     bp.Shells.Add(ToShellFromBox(e));
                     break;
+                default:
+                    skipped++;
+                    break;
             }
         }
 
+        if (skipped > 0)
+        {
+            diagnostics.Add(new CadBlueprintDiagnostic(
+                CadBlueprintDiagnosticSeverity.Warning,
+                "BP201",
+                $"Skipped {skipped} non-blueprint entity kind(s) (sketch/mesh/etc stay in CadDocument).",
+                "entities"));
+        }
+
         bp.Sheets.Add(CreateDefaultSheet(bp));
-        return bp;
+        return (bp, diagnostics);
     }
 
     private static bool LooksLikeShell(CadEntity e) =>
