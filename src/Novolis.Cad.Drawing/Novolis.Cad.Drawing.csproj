@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Novolis.Cad.Drawing</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>Avalonia-free technical drawing: orthographic projection, mesh sectioning, measurements from CadDocument + hierarchy subjects. Domain view templates stay in product hosts.</Description>
+    <RootNamespace>Novolis.Cad.Drawing</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Novolis.Cad.Primitives\Novolis.Cad.Primitives.csproj" />
+    <ProjectReference Include="..\Novolis.Cad.Hierarchy\Novolis.Cad.Hierarchy.csproj" />
+  </ItemGroup>
+</Project>

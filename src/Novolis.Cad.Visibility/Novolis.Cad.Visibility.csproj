@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Novolis.Cad.Visibility</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>Hierarchical Inherit/Visible/Hidden object visibility for CAD documents. Session-scoped; independent of viewport display modes.</Description>
+    <RootNamespace>Novolis.Cad.Visibility</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Novolis.Cad.Hierarchy\Novolis.Cad.Hierarchy.csproj" />
+    <ProjectReference Include="..\Novolis.Cad.Primitives\Novolis.Cad.Primitives.csproj" />
+  </ItemGroup>
+</Project>

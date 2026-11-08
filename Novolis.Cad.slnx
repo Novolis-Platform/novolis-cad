@@ -4,6 +4,10 @@
     <Project Path="src/Novolis.Cad.Blueprint/Novolis.Cad.Blueprint.csproj" />
     <Project Path="src/Novolis.Cad.SceneBridge/Novolis.Cad.SceneBridge.csproj" />
     <Project Path="src/Novolis.Cad.Evaluation/Novolis.Cad.Evaluation.csproj" />
+    <Project Path="src/Novolis.Cad.Hierarchy/Novolis.Cad.Hierarchy.csproj" />
+    <Project Path="src/Novolis.Cad.Visibility/Novolis.Cad.Visibility.csproj" />
+    <Project Path="src/Novolis.Cad.Drawing/Novolis.Cad.Drawing.csproj" />
+    <Project Path="src/Novolis.Cad.Generation/Novolis.Cad.Generation.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Novolis.Cad.Unit/Novolis.Cad.Unit.csproj" />

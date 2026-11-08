@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Novolis.Cad.Generation</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>Avalonia-free CAD model generator contract. Generators return documents and hierarchy — they do not own viewports or global sessions.</Description>
+    <RootNamespace>Novolis.Cad.Generation</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Novolis.Cad.Primitives\Novolis.Cad.Primitives.csproj" />
+    <ProjectReference Include="..\Novolis.Cad.Hierarchy\Novolis.Cad.Hierarchy.csproj" />
+  </ItemGroup>
+</Project>

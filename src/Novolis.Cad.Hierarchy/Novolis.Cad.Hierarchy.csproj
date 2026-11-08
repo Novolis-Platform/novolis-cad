@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Novolis.Cad.Hierarchy</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>Avalonia-free semantic CAD hierarchy: assemblies, parts, references, ownership, and representation maps. Domain classifications are metadata — not ship-specific enums.</Description>
+    <RootNamespace>Novolis.Cad.Hierarchy</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Novolis.Cad.Primitives\Novolis.Cad.Primitives.csproj" />
+  </ItemGroup>
+</Project>

@@ -15,6 +15,10 @@
     <ProjectReference Include="../../src/Novolis.Cad.Blueprint/Novolis.Cad.Blueprint.csproj" />
     <ProjectReference Include="../../src/Novolis.Cad.SceneBridge/Novolis.Cad.SceneBridge.csproj" />
     <ProjectReference Include="../../src/Novolis.Cad.Evaluation/Novolis.Cad.Evaluation.csproj" />
+    <ProjectReference Include="../../src/Novolis.Cad.Hierarchy/Novolis.Cad.Hierarchy.csproj" />
+    <ProjectReference Include="../../src/Novolis.Cad.Visibility/Novolis.Cad.Visibility.csproj" />
+    <ProjectReference Include="../../src/Novolis.Cad.Drawing/Novolis.Cad.Drawing.csproj" />
+    <ProjectReference Include="../../src/Novolis.Cad.Generation/Novolis.Cad.Generation.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />
