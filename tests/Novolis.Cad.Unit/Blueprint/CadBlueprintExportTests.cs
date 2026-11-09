@@ -6,6 +6,28 @@ namespace Novolis.Cad.Unit;
 public sealed class CadBlueprintExportTests
 {
     [Test]
+    public async Task DemoCottage_ExportsFullDraftingSheet()
+    {
+        using var tmp = new TempDir();
+        var result = CadBlueprintDemoCottage.Export(tmp.Path);
+        await Assert.That(result.Ok).IsTrue();
+        await Assert.That(result.Blueprint!.Spaces.Count).IsGreaterThanOrEqualTo(4);
+        await Assert.That(result.Blueprint.Walls.Count).IsGreaterThanOrEqualTo(6);
+        await Assert.That(result.Blueprint.Openings.Count).IsGreaterThanOrEqualTo(2);
+        var html = await File.ReadAllTextAsync(
+            result.WrittenPaths.First(p => p.EndsWith(".html", StringComparison.Ordinal)));
+        await Assert.That(html).Contains("NBP-HOUSE-001");
+        await Assert.That(html).Contains("Living");
+        // Sheet-first: SVG appears before any optional layer UI.
+        var svgAt = html.IndexOf("<svg", StringComparison.Ordinal);
+        await Assert.That(svgAt).IsGreaterThan(0);
+        await Assert.That(html.IndexOf("nbp-stage", StringComparison.Ordinal)).IsLessThan(
+            html.Contains("nbp-ui", StringComparison.Ordinal)
+                ? html.IndexOf("nbp-ui", StringComparison.Ordinal)
+                : int.MaxValue);
+    }
+
+    [Test]
     public async Task House_ProjectValidateRoundTripHtml()
     {
         var doc = MakeHouse();

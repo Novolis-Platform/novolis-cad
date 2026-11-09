@@ -48,7 +48,7 @@ public static class CadBlueprintHtmlExporter
         AppendStyles(sb, sheet);
         sb.AppendLine("</head><body>");
 
-        AppendUi(sb, blueprint, sheet);
+        // Sheet first — drafting document is the SVG; layer UI is optional chrome below.
         sb.AppendLine("<main id=\"nbp-stage\">");
         sb.AppendLine(
             $"<svg id=\"{CadBlueprintDom.SheetElementId}\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {F(w)} {F(h)}\" width=\"100%\" role=\"img\" aria-label=\"{Esc(sheet.Title)}\">");
@@ -91,6 +91,9 @@ public static class CadBlueprintHtmlExporter
 
         sb.AppendLine("</svg></main>");
 
+        if (sheet.ShowUi)
+            AppendUi(sb, blueprint, sheet);
+
         var manifest = new
         {
             format = blueprint.Format,
@@ -118,19 +121,18 @@ public static class CadBlueprintHtmlExporter
     {
         sb.AppendLine("<style>");
         sb.AppendLine("""
-            :root { --nbp-sheet:#fff; --nbp-ink:#111; --nbp-ui-bg:#1e1e1e; --nbp-ui-fg:#e4e4e4; --nbp-accent:#5a9fd4; }
+            :root { --nbp-sheet:#fff; --nbp-ink:#111; --nbp-accent:#5a9fd4; }
             @page { size: 841mm 594mm; margin: 0; }
-            html, body { margin:0; padding:0; background:#2a2a2a; color:var(--nbp-ui-fg); font:13px/1.35 system-ui,sans-serif; }
-            body { display:grid; grid-template-columns:220px 1fr; min-height:100vh; }
-            #nbp-ui { background:var(--nbp-ui-bg); padding:12px 14px; border-right:1px solid #333; overflow:auto; }
-            #nbp-ui h1 { font-size:14px; margin:0 0 4px; font-weight:600; }
-            #nbp-ui .meta { color:#999; font-size:11px; margin-bottom:12px; }
-            #nbp-ui fieldset { border:1px solid #444; margin:0 0 10px; padding:8px 10px; }
+            html, body { margin:0; padding:0; background:#fff; color:#111; font:13px/1.35 system-ui,sans-serif; }
+            #nbp-stage { margin:0; padding:0; }
+            #nbp-sheet { display:block; width:100%; height:auto; background:var(--nbp-sheet); }
+            #nbp-ui { max-width:841px; margin:10px auto 20px; padding:0 12px; }
+            #nbp-ui details { border:1px solid #ddd; padding:8px 12px; background:#fafafa; }
+            #nbp-ui summary { cursor:pointer; font-weight:600; }
+            #nbp-ui fieldset { border:1px solid #ccc; margin:8px 0; padding:8px 10px; }
             #nbp-ui legend { padding:0 4px; color:var(--nbp-accent); font-size:11px; }
             #nbp-ui label { display:flex; gap:8px; align-items:center; margin:4px 0; cursor:pointer; }
             #nbp-ui label.locked { opacity:0.65; cursor:default; }
-            #nbp-stage { display:flex; justify-content:center; align-items:flex-start; padding:12px; overflow:auto; }
-            #nbp-sheet { background:var(--nbp-sheet); max-width:100%; height:auto; box-shadow:0 0 0 1px #333; }
             .ol { fill:#f4f6f8; stroke:var(--nbp-ink); stroke-width:1.05; }
             .space { fill:#fff; stroke:#111; stroke-width:0.45; }
             .wall { stroke:#222; stroke-width:0.9; fill:none; }
@@ -140,10 +142,8 @@ public static class CadBlueprintHtmlExporter
             .room { font:3.2px "IBM Plex Mono",Consolas,monospace; fill:#111; }
             .classnote { font:2.8px "IBM Plex Mono",Consolas,monospace; fill:#444; }
             @media print {
-              body { display:block; background:#fff; }
               #nbp-ui { display:none !important; }
-              #nbp-stage { padding:0; }
-              #nbp-sheet { width:841mm; height:594mm; box-shadow:none; }
+              #nbp-sheet { width:841mm; height:594mm; }
               g[data-nbp-plot="false"] { display:none !important; }
             }
             """);
@@ -161,9 +161,8 @@ public static class CadBlueprintHtmlExporter
     private static void AppendUi(StringBuilder sb, CadBlueprint blueprint, CadBlueprintSheet sheet)
     {
         sb.AppendLine($"<aside id=\"{CadBlueprintDom.UiElementId}\" aria-label=\"Blueprint layers\">");
-        sb.AppendLine($"<h1>{Esc(sheet.Title)}</h1>");
-        sb.AppendLine(
-            $"<div class=\"meta\">{Esc(CadBlueprintDom.FormatValue)} · schema {blueprint.SchemaVersion} · {Esc(blueprint.Context)}</div>");
+        sb.AppendLine("<details>");
+        sb.AppendLine($"<summary>Layers · {Esc(sheet.Title)} · {Esc(blueprint.Context)}</summary>");
         sb.AppendLine("<form id=\"nbp-layer-form\">");
 
         var byFolder = sheet.Folders.Count > 0
@@ -221,7 +220,7 @@ public static class CadBlueprintHtmlExporter
 
         sb.AppendLine("</form>");
         sb.AppendLine("<p class=\"meta\">Toggles use CSS <code>:has()</code>. Print hides UI and non-plot layers.</p>");
-        sb.AppendLine("</aside>");
+        sb.AppendLine("</details></aside>");
     }
 
     private static void AppendPlanGeometry(
