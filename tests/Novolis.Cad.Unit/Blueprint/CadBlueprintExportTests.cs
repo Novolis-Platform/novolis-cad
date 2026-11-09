@@ -18,6 +18,11 @@ public sealed class CadBlueprintExportTests
             result.WrittenPaths.First(p => p.EndsWith(".html", StringComparison.Ordinal)));
         await Assert.That(html).Contains("NBP-HOUSE-001");
         await Assert.That(html).Contains("Living");
+        await Assert.That(html).Contains("data-nbp-iso=\"7200\"");
+        await Assert.That(html).Contains("door-swing");
+        await Assert.That(html).Contains("window-glass");
+        await Assert.That(html).Contains("ARCHITECTURAL GA");
+        await Assert.That(html).DoesNotContain("cottage-shell");
         // Sheet-first: SVG appears before any optional layer UI.
         var svgAt = html.IndexOf("<svg", StringComparison.Ordinal);
         await Assert.That(svgAt).IsGreaterThan(0);
@@ -135,7 +140,7 @@ public sealed class CadBlueprintExportTests
         var html = await File.ReadAllTextAsync(result.WrittenPaths.First(p => p.EndsWith(".html", StringComparison.Ordinal)));
         await Assert.That(html).Contains("iso128-15-stern-left");
         await Assert.That(html).Contains("seagoing-ship");
-        await Assert.That(html).Contains("NOT DNV PLAN APPROVAL");
+        await Assert.That(html).Contains("NOT FOR PLAN APPROVAL");
     }
 
     private static CadDocument MakeHouse()

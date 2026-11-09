@@ -33,13 +33,13 @@ public static class CadBlueprintDemoCottage
         });
 
         // Exterior walls (clockwise from SW): 10 m E-W × 8 m N-S in plan (X×Z).
-        AddWall(doc, wallLayer, "W-S", [0, 0, 0], [10, 0, 0]);
-        AddWall(doc, wallLayer, "W-E", [10, 0, 0], [10, 0, 8]);
+        var wS = AddWall(doc, wallLayer, "W-S", [0, 0, 0], [10, 0, 0]);
+        var wE = AddWall(doc, wallLayer, "W-E", [10, 0, 0], [10, 0, 8]);
         AddWall(doc, wallLayer, "W-N", [10, 0, 8], [0, 0, 8]);
         AddWall(doc, wallLayer, "W-W", [0, 0, 8], [0, 0, 0]);
 
         // Interior partitions
-        var wHall = AddWall(doc, wallLayer, "W-hall", [4, 0, 0], [4, 0, 8]); // N-S
+        AddWall(doc, wallLayer, "W-hall", [4, 0, 0], [4, 0, 8]); // N-S
         AddWall(doc, wallLayer, "W-kit", [4, 0, 4], [10, 0, 4]); // E-W kitchen/living
         var wBath = AddWall(doc, wallLayer, "W-bath", [0, 0, 3], [4, 0, 3]);
 
@@ -49,11 +49,11 @@ public static class CadBlueprintDemoCottage
         AddSpace(doc, "Living", [[4, 0, 0], [10, 0, 0], [10, 0, 4], [4, 0, 4]]);
         AddSpace(doc, "Kitchen", [[4, 0, 4], [10, 0, 4], [10, 0, 8], [4, 0, 8]]);
 
-        // Openings
-        AddOpening(doc, "Front door", "door", wHall, [[3.4f, 0, -0.1f], [4.6f, 0, -0.1f], [4.6f, 0, 0.1f], [3.4f, 0, 0.1f]], 1.0f, 2.1f);
-        AddOpening(doc, "Bath door", "door", wBath, [[1.5f, 0, 2.9f], [2.5f, 0, 2.9f], [2.5f, 0, 3.1f], [1.5f, 0, 3.1f]], 0.8f, 2.1f);
-        AddOpening(doc, "Living window", "window", null, [[6, 0, -0.1f], [8, 0, -0.1f], [8, 0, 0.1f], [6, 0, 0.1f]], 2.0f, 1.2f);
-        AddOpening(doc, "Kitchen window", "window", null, [[10.1f, 0, 5], [10.1f, 0, 7], [9.9f, 0, 7], [9.9f, 0, 5]], 2.0f, 1.2f);
+        // Openings (host walls match footprint; clear widths for door/window symbols)
+        AddOpening(doc, "Front door", "door", wS, [[3.4f, 0, -0.1f], [4.6f, 0, -0.1f], [4.6f, 0, 0.1f], [3.4f, 0, 0.1f]], 1.2f, 2.1f);
+        AddOpening(doc, "Bath door", "door", wBath, [[1.5f, 0, 2.9f], [2.5f, 0, 2.9f], [2.5f, 0, 3.1f], [1.5f, 0, 3.1f]], 0.9f, 2.1f);
+        AddOpening(doc, "Living window", "window", wS, [[6, 0, -0.1f], [8, 0, -0.1f], [8, 0, 0.1f], [6, 0, 0.1f]], 2.0f, 1.2f);
+        AddOpening(doc, "Kitchen window", "window", wE, [[10.1f, 0, 5], [10.1f, 0, 7], [9.9f, 0, 7], [9.9f, 0, 5]], 2.0f, 1.2f);
 
         return doc;
     }
