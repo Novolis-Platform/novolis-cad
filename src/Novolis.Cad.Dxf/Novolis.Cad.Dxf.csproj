@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Novolis.Cad.Dxf</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>DXF → CadDocument importer (ACadSharp) for architectural floor plans — walls, spaces, openings by layer heuristics.</Description>
+    <RootNamespace>Novolis.Cad.Dxf</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Novolis.Cad.Primitives\Novolis.Cad.Primitives.csproj" />
+    <PackageReference Include="ACadSharp" />
+  </ItemGroup>
+</Project>
