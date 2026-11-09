@@ -4,7 +4,7 @@ using Novolis.Cad.Primitives;
 namespace Novolis.Cad.Blueprint;
 
 /// <summary>
-/// Orchestrates project → validate → write <c>.cadblueprint.json</c> + smart HTML sheets.
+/// Orchestrates project → validate → write JSON + typed HTML / SVG / PDF sheets.
 /// </summary>
 public static class CadBlueprintExporter
 {
@@ -79,29 +79,54 @@ public static class CadBlueprintExporter
                 written.Add(jsonPath);
             }
 
+            var sheets = options.SheetIds is { Count: > 0 }
+                ? blueprint.Sheets.Where(s => options.SheetIds.Contains(s.Id, StringComparer.Ordinal)).ToList()
+                : blueprint.Sheets.ToList();
+
+            if (sheets.Count == 0
+                && (options.WriteHtml || options.WriteSvg || options.WritePdf))
+            {
+                diagnostics.Add(new CadBlueprintDiagnostic(
+                    CadBlueprintDiagnosticSeverity.Warning,
+                    "BP101",
+                    "No sheets to export.",
+                    "sheets"));
+            }
+
             if (options.WriteHtml)
             {
-                var htmlDir = Path.Combine(options.OutputDirectory, options.SmartHtmlSubfolder);
-                Directory.CreateDirectory(htmlDir);
-                var sheets = options.SheetIds is { Count: > 0 }
-                    ? blueprint.Sheets.Where(s => options.SheetIds.Contains(s.Id, StringComparer.Ordinal)).ToList()
-                    : blueprint.Sheets.ToList();
+                WriteFormat(
+                    blueprint,
+                    sheets,
+                    options.OutputDirectory,
+                    options.SmartHtmlSubfolder,
+                    ".html",
+                    written,
+                    CadBlueprintHtmlExporter.WriteSheet);
+            }
 
-                if (sheets.Count == 0)
-                {
-                    diagnostics.Add(new CadBlueprintDiagnostic(
-                        CadBlueprintDiagnosticSeverity.Warning,
-                        "BP101",
-                        "No sheets to export as HTML.",
-                        "sheets"));
-                }
+            if (options.WriteSvg)
+            {
+                WriteFormat(
+                    blueprint,
+                    sheets,
+                    options.OutputDirectory,
+                    options.SvgSubfolder,
+                    ".svg",
+                    written,
+                    CadBlueprintSvgExporter.WriteSheet);
+            }
 
-                foreach (var sheet in sheets)
-                {
-                    var file = Path.Combine(htmlDir, $"{SanitizeStem(sheet.Id)}.html");
-                    CadBlueprintHtmlExporter.WriteSheet(blueprint, sheet, file);
-                    written.Add(file);
-                }
+            if (options.WritePdf)
+            {
+                WriteFormat(
+                    blueprint,
+                    sheets,
+                    options.OutputDirectory,
+                    options.PdfSubfolder,
+                    ".pdf",
+                    written,
+                    CadBlueprintPdfExporter.WriteSheet);
             }
         }
         catch (Exception ex)
@@ -137,6 +162,25 @@ public static class CadBlueprintExporter
             Diagnostics = diagnostics,
             WrittenPaths = written,
         };
+    }
+
+    private static void WriteFormat(
+        CadBlueprint blueprint,
+        IReadOnlyList<CadBlueprintSheet> sheets,
+        string outputDirectory,
+        string subfolder,
+        string extension,
+        List<string> written,
+        Action<CadBlueprint, CadBlueprintSheet, string> write)
+    {
+        var dir = Path.Combine(outputDirectory, subfolder);
+        Directory.CreateDirectory(dir);
+        foreach (var sheet in sheets)
+        {
+            var file = Path.Combine(dir, $"{SanitizeStem(sheet.Id)}{extension}");
+            write(blueprint, sheet, file);
+            written.Add(file);
+        }
     }
 
     private static CadBlueprintExportResult FailOnly(CadBlueprintDiagnostic diagnostic) =>

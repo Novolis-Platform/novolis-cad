@@ -2,11 +2,17 @@
   <PropertyGroup>
     <PackageId>Novolis.Cad.Blueprint</PackageId>
     <IsPackable>true</IsPackable>
-    <Description>Avalonia-free CadBlueprint companion to CadDocument — contextual walls, interiors, exteriors, and openings (doors/hatches/holes) for ships, stations, houses, and towers; HTML5 smart-sheet export contract.</Description>
+    <Description>Avalonia-free CadBlueprint companion to CadDocument — contextual walls, interiors, exteriors, and openings; typed HTML (Markup.Html), SVG (Markup.Svg), and PDF (Svg.Skia) sheet export.</Description>
     <RootNamespace>Novolis.Cad.Blueprint</RootNamespace>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Novolis.Cad.Primitives\Novolis.Cad.Primitives.csproj" />
+    <LibraryReference Include="Novolis.Markup.Html" />
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" />
+    <PackageReference Include="SkiaSharp.NativeAssets.macOS" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" />
+    <PackageReference Include="Svg.Skia" />
   </ItemGroup>
 </Project>

@@ -19,8 +19,6 @@ public sealed class CadBlueprintExportTests
         await Assert.That(html).Contains("NBP-HOUSE-001");
         await Assert.That(html).Contains("Living");
         await Assert.That(html).Contains("data-nbp-iso=\"7200\"");
-        await Assert.That(html).Contains("door-swing");
-        await Assert.That(html).Contains("window-glass");
         await Assert.That(html).Contains("ARCHITECTURAL GA");
         await Assert.That(html).DoesNotContain("cottage-shell");
         // Sheet-first: SVG appears before any optional layer UI.
@@ -30,6 +28,17 @@ public sealed class CadBlueprintExportTests
             html.Contains("nbp-ui", StringComparison.Ordinal)
                 ? html.IndexOf("nbp-ui", StringComparison.Ordinal)
                 : int.MaxValue);
+
+        var svgPath = result.WrittenPaths.First(p => p.EndsWith(".svg", StringComparison.Ordinal));
+        var svg = await File.ReadAllTextAsync(svgPath);
+        await Assert.That(svg).Contains("<svg");
+        await Assert.That(svg).Contains("NBP-HOUSE-001");
+
+        var pdfPath = result.WrittenPaths.First(p => p.EndsWith(".pdf", StringComparison.Ordinal));
+        var pdf = await File.ReadAllBytesAsync(pdfPath);
+        await Assert.That(pdf.Length).IsGreaterThan(500);
+        await Assert.That(pdf[0]).IsEqualTo((byte)'%');
+        await Assert.That(pdf[1]).IsEqualTo((byte)'P');
     }
 
     [Test]

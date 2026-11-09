@@ -86,10 +86,15 @@ public static class CadBlueprintDemoCottage
             OutputDirectory = outputDirectory,
             FileStem = "demo-cottage",
             SmartHtmlSubfolder = "sheets",
+            SvgSubfolder = "svg",
+            PdfSubfolder = "pdf",
             ContextOverride = CadBlueprintContexts.House,
             CadDocumentHref = "./demo-cottage.cadjson",
             FailOnError = true,
             FailOnWarning = false,
+            WriteHtml = true,
+            WriteSvg = true,
+            WritePdf = true,
         }, lift);
     }
 
