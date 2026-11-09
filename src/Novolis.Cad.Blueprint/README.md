@@ -72,4 +72,6 @@ string html = CadBlueprintHtmlExporter.EmitSheet(bp, bp.Sheets[0]);
 
 Schema / protocol: [novolis-governance](https://github.com/Novolis-Platform/novolis-governance) `docs/smart-blueprint.md`, `schemas/cad/novolis.cad.blueprint.schema.json`.
 
-Orthographic / mesh-section detail drawings stay in **`Novolis.Cad.Drawing`** — hosts compose ISO chrome separately.
+Optional: when `CadDocument.Properties["hullLoft"]` is present, the projector lifts a **hull shell plan ring** for seagoing-ship GA companions.
+
+Orthographic / mesh-section detail drawings stay in **`Novolis.Cad.Drawing`** — hosts compose ISO 7200 chrome separately.

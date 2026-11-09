@@ -73,15 +73,20 @@ public sealed class CadBlueprintExportTests
     public async Task ShipLookingDoc_UsesSternLeftOrientation()
     {
         var doc = new CadDocument { Name = "Tramp" };
-        // CadVec.LooksLikeShipDocument typically keys off length/name — force via context override on export,
-        // and also stamp a long hull-like shell box so projector infer works when no override.
-        doc.Entities.Add(new CadEntity
+        doc.Properties = new Dictionary<string, System.Text.Json.JsonElement>
         {
-            Kind = "box",
-            Name = "hull-shell",
-            Center = [0, 6, 0],
-            HalfExtents = [10, 6, 34.5f],
-        });
+            ["loa"] = System.Text.Json.JsonSerializer.SerializeToElement(69f),
+            ["oah"] = System.Text.Json.JsonSerializer.SerializeToElement(12.4f),
+            ["hullLoft"] = System.Text.Json.JsonSerializer.SerializeToElement(new
+            {
+                stations = new[]
+                {
+                    new { zFromStem = 0f, halfBeam = 0.2f },
+                    new { zFromStem = 34.5f, halfBeam = 10.4f },
+                    new { zFromStem = 69f, halfBeam = 4f },
+                },
+            }),
+        };
         doc.Entities.Add(new CadEntity
         {
             Kind = "space",
@@ -102,10 +107,13 @@ public sealed class CadBlueprintExportTests
         await Assert.That(result.Ok).IsTrue();
         await Assert.That(result.Blueprint!.Context).IsEqualTo(CadBlueprintContexts.SeagoingShip);
         await Assert.That(result.Blueprint.Sheets[0].Orientation).IsEqualTo("iso128-15-stern-left");
+        await Assert.That(result.Blueprint.Shells).Count().IsEqualTo(1);
+        await Assert.That(result.Blueprint.Shells[0].PlanRing!.Count).IsGreaterThanOrEqualTo(6);
 
         var html = await File.ReadAllTextAsync(result.WrittenPaths.First(p => p.EndsWith(".html", StringComparison.Ordinal)));
         await Assert.That(html).Contains("iso128-15-stern-left");
         await Assert.That(html).Contains("seagoing-ship");
+        await Assert.That(html).Contains("NOT DNV PLAN APPROVAL");
     }
 
     private static CadDocument MakeHouse()

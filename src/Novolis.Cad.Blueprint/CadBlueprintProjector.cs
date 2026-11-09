@@ -104,6 +104,8 @@ public static class CadBlueprintProjector
                 "entities"));
         }
 
+        CadBlueprintHullLoftShell.TryAddFromDocument(bp, doc, diagnostics);
+
         bp.Sheets.Add(CreateDefaultSheet(bp));
         return (bp, diagnostics);
     }
@@ -249,6 +251,7 @@ public static class CadBlueprintProjector
         {
             Id = "GA-001",
             Title = bp.Name,
+            Rev = "B",
             Orientation = bp.Context is CadBlueprintContexts.Spaceship
                 or CadBlueprintContexts.SpaceStation
                 or CadBlueprintContexts.SeagoingShip

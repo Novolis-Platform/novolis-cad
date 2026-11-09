@@ -65,7 +65,16 @@ public static class CadBlueprintHtmlExporter
         sb.AppendLine(
             $"<text x=\"{F(size.BorderLeftMm + 8)}\" y=\"{F(size.BorderMm + 16)}\" class=\"room\">{Esc(sheet.Title)}</text>");
         sb.AppendLine(
-            $"<text x=\"{F(size.BorderLeftMm + 8)}\" y=\"{F(size.BorderMm + 28)}\" class=\"dimt\">{Esc(blueprint.Context)} · {Esc(sheet.Orientation)} · {Esc(sheet.Units)}</text>");
+            $"<text x=\"{F(size.BorderLeftMm + 8)}\" y=\"{F(size.BorderMm + 28)}\" class=\"dimt\">{Esc(blueprint.Context)} · {Esc(sheet.Orientation)} · {Esc(sheet.Units)} · SCALE AS SHOWN</text>");
+        sb.AppendLine(
+            $"<text x=\"{F(size.BorderLeftMm + 8)}\" y=\"{F(h - size.BorderMm - 6)}\" class=\"classnote\">CLASS-STYLE GA COMPANION (novolis.cad.blueprint) — NOT DNV PLAN APPROVAL. ISO 128-15 stern left when orientation says so.</text>");
+        // Mini ISO 7200 block
+        var tbX = w - size.BorderMm - 160;
+        var tbY = h - size.BorderMm - 48;
+        sb.AppendLine($"<rect x=\"{F(tbX)}\" y=\"{F(tbY)}\" width=\"160\" height=\"42\" fill=\"#fff\" stroke=\"#111\" stroke-width=\"0.7\"/>");
+        sb.AppendLine($"<text x=\"{F(tbX + 4)}\" y=\"{F(tbY + 10)}\" class=\"dimt\">DRAWING</text>");
+        sb.AppendLine($"<text x=\"{F(tbX + 4)}\" y=\"{F(tbY + 20)}\" class=\"room\">{Esc(sheet.Id)}</text>");
+        sb.AppendLine($"<text x=\"{F(tbX + 4)}\" y=\"{F(tbY + 32)}\" class=\"dimt\">REV {Esc(sheet.Rev ?? "B")} · A1</text>");
         sb.AppendLine("</g>");
 
         var views = sheet.Views.Count > 0
@@ -109,10 +118,10 @@ public static class CadBlueprintHtmlExporter
     {
         sb.AppendLine("<style>");
         sb.AppendLine("""
-            :root { --nbp-sheet:#f7f4ea; --nbp-ink:#111; --nbp-ui-bg:#1e1e1e; --nbp-ui-fg:#e4e4e4; --nbp-accent:#5a9fd4; }
+            :root { --nbp-sheet:#fff; --nbp-ink:#111; --nbp-ui-bg:#1e1e1e; --nbp-ui-fg:#e4e4e4; --nbp-accent:#5a9fd4; }
             @page { size: 841mm 594mm; margin: 0; }
             html, body { margin:0; padding:0; background:#2a2a2a; color:var(--nbp-ui-fg); font:13px/1.35 system-ui,sans-serif; }
-            body { display:grid; grid-template-columns:240px 1fr; min-height:100vh; }
+            body { display:grid; grid-template-columns:220px 1fr; min-height:100vh; }
             #nbp-ui { background:var(--nbp-ui-bg); padding:12px 14px; border-right:1px solid #333; overflow:auto; }
             #nbp-ui h1 { font-size:14px; margin:0 0 4px; font-weight:600; }
             #nbp-ui .meta { color:#999; font-size:11px; margin-bottom:12px; }
@@ -120,20 +129,21 @@ public static class CadBlueprintHtmlExporter
             #nbp-ui legend { padding:0 4px; color:var(--nbp-accent); font-size:11px; }
             #nbp-ui label { display:flex; gap:8px; align-items:center; margin:4px 0; cursor:pointer; }
             #nbp-ui label.locked { opacity:0.65; cursor:default; }
-            #nbp-stage { display:flex; justify-content:center; align-items:flex-start; padding:16px; overflow:auto; }
-            #nbp-sheet { background:var(--nbp-sheet); max-width:100%; height:auto; }
-            .ol { fill:none; stroke:var(--nbp-ink); stroke-width:0.5; }
-            .space { fill:#fff; stroke:#111; stroke-width:0.35; }
-            .wall { stroke:#333; stroke-width:1.2; fill:none; }
-            .opening { fill:#cde; stroke:#246; stroke-width:0.4; }
-            .dim { stroke:#222; stroke-width:0.2; fill:none; }
+            #nbp-stage { display:flex; justify-content:center; align-items:flex-start; padding:12px; overflow:auto; }
+            #nbp-sheet { background:var(--nbp-sheet); max-width:100%; height:auto; box-shadow:0 0 0 1px #333; }
+            .ol { fill:#f4f6f8; stroke:var(--nbp-ink); stroke-width:1.05; }
+            .space { fill:#fff; stroke:#111; stroke-width:0.45; }
+            .wall { stroke:#222; stroke-width:0.9; fill:none; }
+            .opening { fill:#dce8f5; stroke:#1a4a7a; stroke-width:0.45; }
+            .dim { stroke:#222; stroke-width:0.25; fill:none; }
             .dimt { font:3px "IBM Plex Mono",Consolas,monospace; fill:#111; }
             .room { font:3.2px "IBM Plex Mono",Consolas,monospace; fill:#111; }
+            .classnote { font:2.8px "IBM Plex Mono",Consolas,monospace; fill:#444; }
             @media print {
               body { display:block; background:#fff; }
               #nbp-ui { display:none !important; }
               #nbp-stage { padding:0; }
-              #nbp-sheet { width:841mm; height:594mm; }
+              #nbp-sheet { width:841mm; height:594mm; box-shadow:none; }
               g[data-nbp-plot="false"] { display:none !important; }
             }
             """);
