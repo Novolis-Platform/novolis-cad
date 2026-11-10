@@ -6,35 +6,37 @@ namespace Novolis.Cad.Unit;
 public sealed class DxfCadImportTests
 {
     [Test]
-    public async Task BishopOverland_ImportsWallsAndExportsSheet()
+    public async Task InnersceneBungalow_ImportsWallsAndExportsSheet()
     {
-        var dxf = Path.Combine(AppContext.BaseDirectory, "Fixtures", "Dxf", "bishop-overland-floorplan.dxf");
+        var dxf = Path.Combine(AppContext.BaseDirectory, "Fixtures", "Dxf", "innerscene-three-bedroom-bungalow.dxf");
         await Assert.That(File.Exists(dxf)).IsTrue();
 
         var import = DxfCadImporter.ImportFile(dxf, new DxfImportOptions
         {
-            DocumentName = "Bishop-Overland",
+            DocumentName = "Innerscene bungalow",
         });
 
-        // Face-pair merge: ~170 WALL lines → ~one centerline per wall run.
+        // Closed poche rectangles → one centerline per wall run.
         await Assert.That(import.WallCount).IsGreaterThanOrEqualTo(20);
-        await Assert.That(import.WallCount).IsLessThanOrEqualTo(120);
-        await Assert.That(import.OpeningCount).IsLessThanOrEqualTo(50);
-        await Assert.That(import.OpeningCount).IsGreaterThanOrEqualTo(5);
-        await Assert.That(import.Notes.Any(n => n.Contains("paired=", StringComparison.Ordinal))).IsTrue();
-        await Assert.That(import.Notes.Any(n => n.Contains("Joined wall corners", StringComparison.Ordinal))).IsTrue();
-        await Assert.That(import.Notes.Any(n => n.Contains("wall-face gaps", StringComparison.Ordinal))).IsTrue();
+        await Assert.That(import.WallCount).IsLessThanOrEqualTo(160);
+        await Assert.That(import.OpeningCount).IsLessThanOrEqualTo(80);
+        await Assert.That(import.OpeningCount).IsGreaterThanOrEqualTo(4);
+        await Assert.That(import.Notes.Any(n =>
+            n.Contains("plan INSERT", StringComparison.Ordinal)
+            || n.Contains("wall-face gaps", StringComparison.Ordinal)
+            || n.Contains("door/glazing clear", StringComparison.Ordinal)
+            || n.Contains("wall-end gaps", StringComparison.Ordinal))).IsTrue();
+        await Assert.That(import.Notes.Any(n => n.Contains("wall-end gaps", StringComparison.Ordinal))).IsTrue();
 
         var avgThick = import.Document.Entities
             .Where(e => e.Kind == "wall")
             .Select(e => e.Thickness)
             .DefaultIfEmpty(0)
             .Average();
-        // Paired 4–6" faces should land near ~0.10 m, not the 0.15 m default on every face.
-        await Assert.That(avgThick).IsLessThan(0.14f);
-        await Assert.That(import.UnitScaleMeters).IsGreaterThan(0);
-        // Mis-tagged mm headers should auto-promote to inches for this residential plan.
-        await Assert.That(import.UnitScaleMeters).IsEqualTo(0.0254);
+        // Innerscene poche is ~250 mm; reject default-only 0.15 m soup.
+        await Assert.That(avgThick).IsGreaterThan(0.12f);
+        await Assert.That(avgThick).IsLessThan(0.40f);
+        await Assert.That(import.UnitScaleMeters).IsEqualTo(0.001);
 
         await Assert.That(DxfCadImporter.IsRoomLabel("Kitchen")).IsTrue();
         await Assert.That(DxfCadImporter.IsRoomLabel("ENTRY")).IsTrue();
@@ -47,7 +49,7 @@ public sealed class DxfCadImportTests
         var export = CadBlueprintExporter.Export(import.Document, new CadBlueprintExportOptions
         {
             OutputDirectory = tmp.Path,
-            FileStem = "bishop",
+            FileStem = "innerscene",
             ContextOverride = CadBlueprintContexts.House,
             SmartHtmlSubfolder = "sheets",
             SvgSubfolder = "svg",

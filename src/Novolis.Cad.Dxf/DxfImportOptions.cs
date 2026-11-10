@@ -21,7 +21,7 @@ public sealed class DxfImportOptions
 
     /// <summary>Substring match for opening / door / window layers.</summary>
     public IReadOnlyList<string> OpeningLayerHints { get; init; } =
-        ["OPENING", "DOOR", "WINDOW", "GARAGE"];
+        ["OPENING", "DOOR", "WINDOW", "GLAZ", "GARAGE"];
 
     /// <summary>Substring match for closed space / room polylines.</summary>
     public IReadOnlyList<string> SpaceLayerHints { get; init; } =
@@ -54,7 +54,7 @@ public sealed class DxfImportOptions
     public float MinWallThicknessMeters { get; init; } = 0.05f;
 
     /// <summary>Maximum face-pair separation treated as wall thickness (metres).</summary>
-    public float MaxWallThicknessMeters { get; init; } = 0.35f;
+    public float MaxWallThicknessMeters { get; init; } = 0.45f;
 
     /// <summary>
     /// Keep face lines that have no parallel partner. Default false: AIA double-line
