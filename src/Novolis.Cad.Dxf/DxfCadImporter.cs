@@ -59,7 +59,7 @@ public static class DxfCadImporter
         var wallFaces = new List<WallFace>();
         // LINE faces only — continuous LWPOLYLINE wall traces often bridge door/window clears.
         var gapFaces = new List<WallFace>();
-        var openingClears = new List<WallFace>();
+        var openingClears = new List<(WallFace Face, string Layer)>();
 
         var planEntities = EnumeratePlanEntities(dxf, notes).ToList();
         foreach (var (entity, xform) in planEntities)
@@ -88,10 +88,13 @@ public static class DxfCadImporter
                     // Door/window clear strokes (AIA A-DOOR / A-GLAZ), not swing arcs.
                     var a = Map(xform, line.StartPoint.X, line.StartPoint.Y);
                     var b = Map(xform, line.EndPoint.X, line.EndPoint.Y);
+                    var faces = new List<WallFace>();
                     if (!TryCollectWallFace(
-                            openingClears, a, b, scale, options,
+                            faces, a, b, scale, options,
                             minLengthOverride: options.MinOpeningLengthMeters))
                         skipped++;
+                    else
+                        openingClears.Add((faces[0], layerName));
                     break;
                 }
                 case LwPolyline poly:
@@ -148,13 +151,15 @@ public static class DxfCadImporter
 
         var walls = CommitWalls(doc, wallLayerId, wallFaces, options, notes);
         walls = MergeCollinearWalls(doc, notes);
-        JoinWallCorners(doc, notes);
+        JoinWallCorners(doc, options, notes);
         walls = MergeCollinearWalls(doc, notes);
-        // Face gaps suit double-line plans; closed-rectangle CAD needs door clears + end gaps.
-        var openings = DetectOpeningsFromFaceGaps(doc, openingLayerId, gapFaces, options, notes);
-        if (openings == 0)
-            openings = DetectOpeningsFromClears(doc, openingLayerId, openingClears, options, notes);
-        openings += DetectOpeningsFromWallEndGaps(doc, openingLayerId, options, notes);
+        // Closed-rectangle CAD: merge stubs across opening gaps into continuous hosts + cuts.
+        var openings = MergeCollinearAcrossGapsWithOpenings(doc, openingLayerId, options, notes);
+        // Double-line plans: uncovered face spans along each centerline.
+        openings += DetectOpeningsFromFaceGaps(doc, openingLayerId, gapFaces, options, notes);
+        // Door/glazing clear lines re-hosted after merges (deduped against existing opens).
+        openings += DetectOpeningsFromClears(doc, openingLayerId, openingClears, options, notes);
+        walls = doc.Entities.Count(e => e.Kind == "wall");
         ApplyTextLabels(planEntities, doc, scale);
         notes.Add($"Lifted walls={walls} spaces={spaces} openings={openings} skipped={skipped}.");
 
@@ -707,7 +712,7 @@ public static class DxfCadImporter
     /// Snap near wall endpoints to line–line intersections so face-pair centerlines
     /// form a connected plan graph instead of floating stubs.
     /// </summary>
-    private static void JoinWallCorners(CadDocument doc, List<string> notes)
+    private static void JoinWallCorners(CadDocument doc, DxfImportOptions options, List<string> notes)
     {
         const float maxExtend = 0.75f;
         const float nearEnd = 0.75f;
@@ -727,42 +732,77 @@ public static class DxfCadImporter
 
                 if (hitA)
                 {
-                    if (EndpointDist(a.A!, ix, iz) <= nearEnd)
-                    {
-                        a.A = [ix, 0f, iz];
+                    if (EndpointDist(a.A!, ix, iz) <= nearEnd && TryMoveEndpoint(a, isA: true, ix, iz))
                         joins++;
-                    }
-                    else if (EndpointDist(a.B!, ix, iz) <= nearEnd)
-                    {
-                        a.B = [ix, 0f, iz];
+                    else if (EndpointDist(a.B!, ix, iz) <= nearEnd && TryMoveEndpoint(a, isA: false, ix, iz))
                         joins++;
-                    }
                 }
 
                 if (hitB)
                 {
-                    if (EndpointDist(b.A!, ix, iz) <= nearEnd)
-                    {
-                        b.A = [ix, 0f, iz];
+                    if (EndpointDist(b.A!, ix, iz) <= nearEnd && TryMoveEndpoint(b, isA: true, ix, iz))
                         joins++;
-                    }
-                    else if (EndpointDist(b.B!, ix, iz) <= nearEnd)
-                    {
-                        b.B = [ix, 0f, iz];
+                    else if (EndpointDist(b.B!, ix, iz) <= nearEnd && TryMoveEndpoint(b, isA: false, ix, iz))
                         joins++;
-                    }
                 }
             }
         }
 
-        var welds = WeldNearbyEndpoints(walls, 0.28f);
-        var tees = SnapDanglingToWalls(walls, 0.40f);
+        var welds = WeldNearbyEndpoints(walls, 0.28f, options);
+        var tees = SnapDanglingToWalls(walls, 0.40f, options);
         if (joins > 0 || welds > 0 || tees > 0)
             notes.Add($"Joined wall corners: intersects={joins} endpoint-welds={welds} T-snaps={tees}.");
     }
 
+    /// <summary>
+    /// Move a wall endpoint only when length stretch stays ≤15% and tangent skew ≤~2°.
+    /// </summary>
+    private static bool TryMoveEndpoint(CadEntity wall, bool isA, float x, float z)
+    {
+        var ax = wall.A![0];
+        var az = wall.A[2];
+        var bx = wall.B![0];
+        var bz = wall.B[2];
+        var odx = bx - ax;
+        var odz = bz - az;
+        var oldLen = (float)System.Math.Sqrt(odx * odx + odz * odz);
+        if (oldLen < 1e-4f)
+            return false;
+        var otx = odx / oldLen;
+        var otz = odz / oldLen;
+
+        float nax = ax, naz = az, nbx = bx, nbz = bz;
+        if (isA)
+        {
+            nax = x;
+            naz = z;
+        }
+        else
+        {
+            nbx = x;
+            nbz = z;
+        }
+
+        var ndx = nbx - nax;
+        var ndz = nbz - naz;
+        var newLen = (float)System.Math.Sqrt(ndx * ndx + ndz * ndz);
+        if (newLen < 1e-4f)
+            return false;
+        if (newLen > oldLen * 1.15f || newLen < oldLen * 0.85f)
+            return false;
+        var ntx = ndx / newLen;
+        var ntz = ndz / newLen;
+        // cos(2°) ≈ 0.99939
+        if (System.Math.Abs(otx * ntx + otz * ntz) < 0.9993f)
+            return false;
+
+        if (isA) wall.A = [x, 0f, z];
+        else wall.B = [x, 0f, z];
+        return true;
+    }
+
     /// <summary>Project remaining dangling endpoints onto the nearest crossing wall (T-junction).</summary>
-    private static int SnapDanglingToWalls(List<CadEntity> walls, float maxDist)
+    private static int SnapDanglingToWalls(List<CadEntity> walls, float maxDist, DxfImportOptions options)
     {
         // Degree-1 endpoints only.
         var ends = new List<(CadEntity Wall, bool IsA, float X, float Z)>();
@@ -790,6 +830,10 @@ public static class DxfCadImporter
                 continue; // already joined
 
             var e = ends[i];
+            // Do not T-snap toward a collinear neighbor across an opening-sized gap.
+            if (HasOpeningSizedCollinearNeighbor(e.Wall, walls, options))
+                continue;
+
             CadEntity? bestWall = null;
             var bestD = maxDist;
             float bestX = 0, bestZ = 0;
@@ -823,8 +867,8 @@ public static class DxfCadImporter
 
             if (bestWall is null)
                 continue;
-            if (e.IsA) e.Wall.A = [bestX, 0f, bestZ];
-            else e.Wall.B = [bestX, 0f, bestZ];
+            if (!TryMoveEndpoint(e.Wall, e.IsA, bestX, bestZ))
+                continue;
             snaps++;
         }
 
@@ -891,7 +935,7 @@ public static class DxfCadImporter
         return (float)System.Math.Sqrt(dx * dx + dz * dz);
     }
 
-    private static int WeldNearbyEndpoints(List<CadEntity> walls, float tol)
+    private static int WeldNearbyEndpoints(List<CadEntity> walls, float tol, DxfImportOptions options)
     {
         var ends = new List<(CadEntity Wall, bool IsA, float X, float Z)>();
         foreach (var w in walls)
@@ -919,19 +963,137 @@ public static class DxfCadImporter
             if (cluster.Count < 2)
                 continue;
 
+            // Skip welding collinear walls that still have an opening-sized along-gap
+            // (endpoint clusters can be near corner returns while the run gap is a door).
+            var skip = false;
+            for (var a = 0; a < cluster.Count && !skip; a++)
+            {
+                for (var b = a + 1; b < cluster.Count; b++)
+                {
+                    var wa = ends[cluster[a]].Wall;
+                    var wb = ends[cluster[b]].Wall;
+                    if (ReferenceEquals(wa, wb)) continue;
+                    if (TryCollinearOpeningGap(wa, wb, options, out _, out _, out _, out _))
+                    {
+                        skip = true;
+                        break;
+                    }
+                }
+            }
+
+            if (skip)
+            {
+                foreach (var k in cluster)
+                    used[k] = true;
+                continue;
+            }
+
             var cx = cluster.Average(k => ends[k].X);
             var cz = cluster.Average(k => ends[k].Z);
             foreach (var k in cluster)
             {
                 used[k] = true;
                 var e = ends[k];
-                if (e.IsA) e.Wall.A = [cx, 0f, cz];
-                else e.Wall.B = [cx, 0f, cz];
+                if (!TryMoveEndpoint(e.Wall, e.IsA, cx, cz))
+                    continue;
                 welds++;
             }
         }
 
         return welds;
+    }
+
+    private static bool HasOpeningSizedCollinearNeighbor(
+        CadEntity wall,
+        List<CadEntity> walls,
+        DxfImportOptions options)
+    {
+        foreach (var other in walls)
+        {
+            if (ReferenceEquals(other, wall)) continue;
+            if (TryCollinearOpeningGap(wall, other, options, out _, out _, out _, out _))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// True when two walls are collinear (within poche band) with a projected gap in the
+    /// door/window clear range.
+    /// </summary>
+    private static bool TryCollinearOpeningGap(
+        CadEntity a,
+        CadEntity b,
+        DxfImportOptions options,
+        out float g0,
+        out float g1,
+        out float union0,
+        out float union1)
+    {
+        g0 = g1 = union0 = union1 = 0;
+        var ax = a.A![0];
+        var az = a.A[2];
+        var bx = a.B![0];
+        var bz = a.B[2];
+        var adx = bx - ax;
+        var adz = bz - az;
+        var alen = (float)System.Math.Sqrt(adx * adx + adz * adz);
+        if (alen < 1e-4f) return false;
+        var atx = adx / alen;
+        var atz = adz / alen;
+        var anx = -atz;
+        var anz = atx;
+
+        var cx = b.A![0];
+        var cz = b.A[2];
+        var dx = b.B![0];
+        var dz = b.B[2];
+        var bdx = dx - cx;
+        var bdz = dz - cz;
+        var blen = (float)System.Math.Sqrt(bdx * bdx + bdz * bdz);
+        if (blen < 1e-4f) return false;
+        if (System.Math.Abs(atx * (bdx / blen) + atz * (bdz / blen)) < 0.98f)
+            return false;
+
+        var aThick = a.Thickness > 1e-4f ? a.Thickness : options.WallThicknessMeters;
+        var bThick = b.Thickness > 1e-4f ? b.Thickness : options.WallThicknessMeters;
+        var thick = System.Math.Max(aThick, bThick);
+        var bmx = (cx + dx) * 0.5f;
+        var bmz = (cz + dz) * 0.5f;
+        var sep = System.Math.Abs((bmx - ax) * anx + (bmz - az) * anz);
+        if (sep > thick * 0.55f + 0.08f)
+            return false;
+
+        float Proj(float x, float z) => (x - ax) * atx + (z - az) * atz;
+        var a0 = 0f;
+        var a1 = alen;
+        var b0 = Proj(cx, cz);
+        var b1 = Proj(dx, dz);
+        if (b0 > b1) (b0, b1) = (b1, b0);
+
+        if (a1 < b0)
+        {
+            g0 = a1;
+            g1 = b0;
+        }
+        else if (b1 < a0)
+        {
+            g0 = b1;
+            g1 = a0;
+        }
+        else
+        {
+            return false;
+        }
+
+        var glen = g1 - g0;
+        if (glen < options.MinOpeningLengthMeters || glen > options.MaxOpeningLengthMeters)
+            return false;
+
+        union0 = System.Math.Min(a0, b0);
+        union1 = System.Math.Max(a1, b1);
+        return true;
     }
 
     private static bool TryAddSpace(
@@ -969,12 +1131,12 @@ public static class DxfCadImporter
     }
 
     /// <summary>
-    /// AIA A-DOOR / A-GLAZ clear LINE strokes hosted onto the nearest wall.
+    /// AIA A-DOOR / A-GLAZ clear LINE strokes hosted onto the nearest wall (after merges).
     /// </summary>
     private static int DetectOpeningsFromClears(
         CadDocument doc,
         Guid layerId,
-        List<WallFace> clears,
+        List<(WallFace Face, string Layer)> clears,
         DxfImportOptions options,
         List<string> notes)
     {
@@ -984,15 +1146,30 @@ public static class DxfCadImporter
         var walls = doc.Entities
             .Where(e => e.Kind == "wall" && e.A is { Length: >= 3 } && e.B is { Length: >= 3 })
             .ToList();
+        var existing = doc.Entities
+            .Where(e => e.Kind == "opening" && e.Footprint is { Count: >= 2 })
+            .Select(e => (
+                X: e.Footprint!.Average(p => p[0]),
+                Z: e.Footprint!.Average(p => p.Length > 2 ? p[2] : p[1])))
+            .ToList();
         var count = 0;
         var used = new bool[clears.Count];
 
         for (var i = 0; i < clears.Count; i++)
         {
             if (used[i]) continue;
-            var clear = clears[i];
+            var clear = clears[i].Face;
+            var layer = clears[i].Layer;
             if (clear.Len < options.MinOpeningLengthMeters || clear.Len > options.MaxOpeningLengthMeters)
                 continue;
+
+            if (existing.Any(o =>
+                    System.Math.Abs(o.X - clear.Mx) + System.Math.Abs(o.Z - clear.Mz)
+                    <= options.OpeningDedupeMeters))
+            {
+                used[i] = true;
+                continue;
+            }
 
             CadEntity? host = null;
             var bestLat = float.MaxValue;
@@ -1013,7 +1190,6 @@ public static class DxfCadImporter
                 var tz = wdz / wlen;
                 var nx = -tz;
                 var nz = tx;
-                // Clear stroke parallel to the wall (leaf along the clear).
                 var parallel = System.Math.Abs(clear.Tx * tx + clear.Tz * tz);
                 if (parallel < 0.85f)
                     continue;
@@ -1058,14 +1234,21 @@ public static class DxfCadImporter
             for (var j = i + 1; j < clears.Count; j++)
             {
                 if (used[j]) continue;
-                var d = System.Math.Abs(clears[j].Mx - clear.Mx) + System.Math.Abs(clears[j].Mz - clear.Mz);
+                var d = System.Math.Abs(clears[j].Face.Mx - clear.Mx)
+                        + System.Math.Abs(clears[j].Face.Mz - clear.Mz);
                 if (d <= options.OpeningDedupeMeters)
                     used[j] = true;
             }
 
-            count += TryEmitFaceGap(
+            var kind = ClassifyOpeningKind(bestT1 - bestT0, layer);
+            var added = TryEmitFaceGap(
                 doc, layerId, host, bestAx, bestAz, bestTx, bestTz, bestNx, bestNz, bestThick,
-                bestWlen, bestT0, bestT1, options);
+                bestWlen, bestT0, bestT1, options, kind);
+            if (added > 0)
+            {
+                count += added;
+                existing.Add((clear.Mx, clear.Mz));
+            }
         }
 
         notes.Add($"Detected {count} opening(s) from door/glazing clear lines.");
@@ -1073,116 +1256,101 @@ public static class DxfCadImporter
     }
 
     /// <summary>
-    /// Closed-rectangle wall CAD leaves door/window clears as gaps between collinear runs.
+    /// Merge collinear wall stubs across door/window-sized gaps into one continuous host,
+    /// then emit the opening cut inside the merged span.
     /// </summary>
-    private static int DetectOpeningsFromWallEndGaps(
+    private static int MergeCollinearAcrossGapsWithOpenings(
         CadDocument doc,
         Guid layerId,
         DxfImportOptions options,
         List<string> notes)
     {
-        var walls = doc.Entities
-            .Where(e => e.Kind == "wall" && e.A is { Length: >= 3 } && e.B is { Length: >= 3 })
-            .ToList();
-        var count = 0;
-        var emitted = new HashSet<string>(StringComparer.Ordinal);
-
-        for (var i = 0; i < walls.Count; i++)
+        var merges = 0;
+        var openings = 0;
+        for (var guard = 0; guard < 256; guard++)
         {
-            for (var j = i + 1; j < walls.Count; j++)
+            var walls = doc.Entities
+                .Where(e => e.Kind == "wall" && e.A is { Length: >= 3 } && e.B is { Length: >= 3 })
+                .ToList();
+            CadEntity? survivor = null;
+            CadEntity? victim = null;
+            float g0 = 0, g1 = 0, union0 = 0, union1 = 0;
+
+            for (var i = 0; i < walls.Count && survivor is null; i++)
             {
-                var a = walls[i];
-                var b = walls[j];
-                var ax = a.A![0];
-                var az = a.A[2];
-                var bx = a.B![0];
-                var bz = a.B[2];
-                var adx = bx - ax;
-                var adz = bz - az;
-                var alen = (float)System.Math.Sqrt(adx * adx + adz * adz);
-                if (alen < 1e-4f) continue;
-                var atx = adx / alen;
-                var atz = adz / alen;
-                var anx = -atz;
-                var anz = atx;
-
-                var cx = b.A![0];
-                var cz = b.A[2];
-                var dx = b.B![0];
-                var dz = b.B[2];
-                var bdx = dx - cx;
-                var bdz = dz - cz;
-                var blen = (float)System.Math.Sqrt(bdx * bdx + bdz * bdz);
-                if (blen < 1e-4f) continue;
-                if (System.Math.Abs(atx * (bdx / blen) + atz * (bdz / blen)) < 0.98f)
-                    continue;
-
-                var aThick = a.Thickness > 1e-4f ? a.Thickness : options.WallThicknessMeters;
-                var bThick = b.Thickness > 1e-4f ? b.Thickness : options.WallThicknessMeters;
-                var thick = System.Math.Max(aThick, bThick);
-                var bmx = (cx + dx) * 0.5f;
-                var bmz = (cz + dz) * 0.5f;
-                var sep = System.Math.Abs((bmx - ax) * anx + (bmz - az) * anz);
-                if (sep > thick * 0.55f + 0.08f)
-                    continue;
-
-                float Proj(float x, float z) => (x - ax) * atx + (z - az) * atz;
-                var a0 = 0f;
-                var a1 = alen;
-                var b0 = Proj(cx, cz);
-                var b1 = Proj(dx, dz);
-                if (b0 > b1) (b0, b1) = (b1, b0);
-
-                // Gap between projected segments (no overlap).
-                float g0, g1;
-                if (a1 < b0)
+                for (var j = i + 1; j < walls.Count; j++)
                 {
-                    g0 = a1;
-                    g1 = b0;
-                }
-                else if (b1 < a0)
-                {
-                    g0 = b1;
-                    g1 = a0;
-                }
-                else
-                {
-                    continue;
-                }
-
-                var glen = g1 - g0;
-                if (glen < options.MinOpeningLengthMeters || glen > options.MaxOpeningLengthMeters)
-                    continue;
-
-                var key = $"{g0:0.00}:{g1:0.00}:{((ax + atx * ((g0 + g1) * 0.5f))):0.00}:{(az + atz * ((g0 + g1) * 0.5f)):0.00}";
-                if (!emitted.Add(key))
-                    continue;
-
-                // Host on the longer wall; emit in that wall's frame when a is longer.
-                var host = alen >= blen ? a : b;
-                if (ReferenceEquals(host, a))
-                {
-                    count += TryEmitFaceGap(
-                        doc, layerId, a, ax, az, atx, atz, anx, anz, thick, alen, g0, g1, options);
-                }
-                else
-                {
-                    var btx = bdx / blen;
-                    var btz = bdz / blen;
-                    var bnx = -btz;
-                    var bnz = btx;
-                    float ProjB(float x, float z) => (x - cx) * btx + (z - cz) * btz;
-                    var og0 = ProjB(ax + atx * g0, az + atz * g0);
-                    var og1 = ProjB(ax + atx * g1, az + atz * g1);
-                    if (og0 > og1) (og0, og1) = (og1, og0);
-                    count += TryEmitFaceGap(
-                        doc, layerId, b, cx, cz, btx, btz, bnx, bnz, thick, blen, og0, og1, options);
+                    if (!TryCollinearOpeningGap(walls[i], walls[j], options, out g0, out g1, out union0, out union1))
+                        continue;
+                    survivor = walls[i];
+                    victim = walls[j];
+                    break;
                 }
             }
+
+            if (survivor is null || victim is null)
+                break;
+
+            var ax = survivor.A![0];
+            var az = survivor.A[2];
+            var bx = survivor.B![0];
+            var bz = survivor.B[2];
+            var adx = bx - ax;
+            var adz = bz - az;
+            var alen = (float)System.Math.Sqrt(adx * adx + adz * adz);
+            var atx = adx / alen;
+            var atz = adz / alen;
+            var anx = -atz;
+            var anz = atx;
+            var thick = System.Math.Max(
+                survivor.Thickness > 1e-4f ? survivor.Thickness : options.WallThicknessMeters,
+                victim.Thickness > 1e-4f ? victim.Thickness : options.WallThicknessMeters);
+
+            // Rebuild survivor along original tangent covering the union of both stubs.
+            survivor.A = [ax + atx * union0, 0f, az + atz * union0];
+            survivor.B = [ax + atx * union1, 0f, az + atz * union1];
+            survivor.Thickness = thick;
+            var mergedLen = union1 - union0;
+            // Gap was measured in pre-merge frame with origin at old A (t=0).
+            // After shifting A to union0, gap starts at g0 - union0.
+            var ng0 = g0 - union0;
+            var ng1 = g1 - union0;
+
+            var victimId = victim.Id;
+            doc.Entities.Remove(victim);
+            foreach (var op in doc.Entities.Where(e => e.Kind == "opening" && e.HostWallId == victimId))
+                op.HostWallId = survivor.Id;
+
+            var kind = ClassifyOpeningKind(ng1 - ng0, layerHint: null);
+            openings += TryEmitFaceGap(
+                doc, layerId, survivor,
+                survivor.A[0], survivor.A[2], atx, atz, anx, anz, thick, mergedLen,
+                ng0, ng1, options, kind, allowNearEnd: true);
+            merges++;
         }
 
-        notes.Add($"Detected {count} opening(s) from collinear wall-end gaps.");
-        return count;
+        // Renumber walls after removals.
+        var n = 0;
+        foreach (var w in doc.Entities.Where(e => e.Kind == "wall"))
+            w.Name = $"W-{++n}";
+
+        if (merges > 0)
+            notes.Add($"Merged {merges} collinear wall stub(s) across openings → {openings} cut(s).");
+        return openings;
+    }
+
+    private static string ClassifyOpeningKind(float clearWidthMeters, string? layerHint)
+    {
+        if (!string.IsNullOrEmpty(layerHint))
+        {
+            if (layerHint.Contains("GLAZ", StringComparison.OrdinalIgnoreCase)
+                || layerHint.Contains("WINDOW", StringComparison.OrdinalIgnoreCase))
+                return "window";
+            if (layerHint.Contains("DOOR", StringComparison.OrdinalIgnoreCase))
+                return "door";
+        }
+
+        return clearWidthMeters < 1.05f ? "door" : "window";
     }
 
     /// <summary>
@@ -1284,21 +1452,42 @@ public static class DxfCadImporter
         float wlen,
         float g0,
         float g1,
-        DxfImportOptions options)
+        DxfImportOptions options,
+        string? kindOverride = null,
+        bool allowNearEnd = false)
     {
         var glen = g1 - g0;
         if (glen < options.MinOpeningLengthMeters || glen > options.MaxOpeningLengthMeters)
             return 0;
-        // Corner pairing noise at wall ends — ignore short end gaps.
-        if ((g0 < 0.15f || g1 > wlen - 0.15f) && glen < 0.85f)
+        // Corner pairing noise at wall ends — ignore short end gaps (face-gap path).
+        if (!allowNearEnd && (g0 < 0.15f || g1 > wlen - 0.15f) && glen < 0.85f)
             return 0;
+        if (g0 < -0.05f || g1 > wlen + 0.05f)
+            return 0;
+        g0 = System.Math.Clamp(g0, 0f, wlen);
+        g1 = System.Math.Clamp(g1, 0f, wlen);
+        glen = g1 - g0;
+        if (glen < options.MinOpeningLengthMeters)
+            return 0;
+
+        // Dedupe against an existing opening on the same host near this clear.
+        var midX = ax + tx * ((g0 + g1) * 0.5f);
+        var midZ = az + tz * ((g0 + g1) * 0.5f);
+        foreach (var op in doc.Entities.Where(e => e.Kind == "opening" && e.HostWallId == wall.Id))
+        {
+            if (op.Footprint is not { Count: >= 2 }) continue;
+            var ox = op.Footprint.Average(p => p[0]);
+            var oz = op.Footprint.Average(p => p.Length > 2 ? p[2] : p[1]);
+            if (System.Math.Abs(ox - midX) + System.Math.Abs(oz - midZ) <= options.OpeningDedupeMeters)
+                return 0;
+        }
 
         var ox0 = ax + tx * g0;
         var oz0 = az + tz * g0;
         var ox1 = ax + tx * g1;
         var oz1 = az + tz * g1;
         var halfD = System.Math.Max(thick * 0.55f, 0.06f);
-        var kind = glen >= 1.15f ? "window" : "door";
+        var kind = kindOverride ?? ClassifyOpeningKind(glen, layerHint: null);
         var n = doc.Entities.Count(e => e.Kind == "opening") + 1;
         doc.Entities.Add(new CadEntity
         {

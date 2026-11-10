@@ -16,27 +16,55 @@ public sealed class DxfCadImportTests
             DocumentName = "Innerscene bungalow",
         });
 
-        // Closed poche rectangles → one centerline per wall run.
-        await Assert.That(import.WallCount).IsGreaterThanOrEqualTo(20);
-        await Assert.That(import.WallCount).IsLessThanOrEqualTo(160);
-        await Assert.That(import.OpeningCount).IsLessThanOrEqualTo(80);
+        // Closed poche rectangles merged across openings → fewer continuous hosts.
+        await Assert.That(import.WallCount).IsGreaterThanOrEqualTo(8);
+        await Assert.That(import.WallCount).IsLessThanOrEqualTo(30);
         await Assert.That(import.OpeningCount).IsGreaterThanOrEqualTo(4);
+        await Assert.That(import.OpeningCount).IsLessThanOrEqualTo(40);
         await Assert.That(import.Notes.Any(n =>
-            n.Contains("plan INSERT", StringComparison.Ordinal)
-            || n.Contains("wall-face gaps", StringComparison.Ordinal)
-            || n.Contains("door/glazing clear", StringComparison.Ordinal)
-            || n.Contains("wall-end gaps", StringComparison.Ordinal))).IsTrue();
-        await Assert.That(import.Notes.Any(n => n.Contains("wall-end gaps", StringComparison.Ordinal))).IsTrue();
+            n.Contains("Merged", StringComparison.Ordinal)
+            && n.Contains("across openings", StringComparison.Ordinal))).IsTrue();
+        await Assert.That(import.UnitScaleMeters).IsEqualTo(0.001);
 
-        var avgThick = import.Document.Entities
-            .Where(e => e.Kind == "wall")
-            .Select(e => e.Thickness)
-            .DefaultIfEmpty(0)
-            .Average();
-        // Innerscene poche is ~250 mm; reject default-only 0.15 m soup.
+        var walls = import.Document.Entities
+            .Where(e => e.Kind == "wall" && e.A is { Length: >= 3 } && e.B is { Length: >= 3 })
+            .ToDictionary(e => e.Id);
+        var openings = import.Document.Entities.Where(e => e.Kind == "opening").ToList();
+        await Assert.That(openings.Count).IsGreaterThanOrEqualTo(4);
+
+        var doors = openings.Count(o =>
+            string.Equals(o.OpeningType, "door", StringComparison.OrdinalIgnoreCase));
+        await Assert.That(doors).IsGreaterThanOrEqualTo(2);
+
+        var avgThick = walls.Values.Select(e => e.Thickness).DefaultIfEmpty(0).Average();
         await Assert.That(avgThick).IsGreaterThan(0.12f);
         await Assert.That(avgThick).IsLessThan(0.40f);
-        await Assert.That(import.UnitScaleMeters).IsEqualTo(0.001);
+
+        // Every opening mid must project onto its host within the host span.
+        foreach (var op in openings)
+        {
+            await Assert.That(op.HostWallId is { }).IsTrue();
+            await Assert.That(walls.ContainsKey(op.HostWallId!.Value)).IsTrue();
+            var host = walls[op.HostWallId.Value];
+            var ax = host.A![0];
+            var az = host.A[2];
+            var bx = host.B![0];
+            var bz = host.B[2];
+            var dx = bx - ax;
+            var dz = bz - az;
+            var len = (float)System.Math.Sqrt(dx * dx + dz * dz);
+            await Assert.That(len).IsGreaterThan(0.2f);
+            var tx = dx / len;
+            var tz = dz / len;
+            var midX = op.Footprint!.Average(p => p[0]);
+            var midZ = op.Footprint!.Average(p => p.Length > 2 ? p[2] : p[1]);
+            var t = (midX - ax) * tx + (midZ - az) * tz;
+            var half = op.Thickness > 1e-3f ? op.Thickness * 0.5f : 0.3f;
+            await Assert.That(t).IsGreaterThanOrEqualTo(-0.05f);
+            await Assert.That(t).IsLessThanOrEqualTo(len + 0.05f);
+            await Assert.That(t - half).IsLessThanOrEqualTo(len + 0.1f);
+            await Assert.That(t + half).IsGreaterThanOrEqualTo(-0.1f);
+        }
 
         await Assert.That(DxfCadImporter.IsRoomLabel("Kitchen")).IsTrue();
         await Assert.That(DxfCadImporter.IsRoomLabel("ENTRY")).IsTrue();
