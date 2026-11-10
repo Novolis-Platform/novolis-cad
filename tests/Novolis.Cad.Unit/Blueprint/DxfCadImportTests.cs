@@ -17,10 +17,13 @@ public sealed class DxfCadImportTests
         });
 
         // Face-pair merge: ~170 WALL lines → ~one centerline per wall run.
-        await Assert.That(import.WallCount).IsGreaterThanOrEqualTo(30);
+        await Assert.That(import.WallCount).IsGreaterThanOrEqualTo(20);
         await Assert.That(import.WallCount).IsLessThanOrEqualTo(120);
-        await Assert.That(import.OpeningCount).IsLessThanOrEqualTo(40);
+        await Assert.That(import.OpeningCount).IsLessThanOrEqualTo(50);
+        await Assert.That(import.OpeningCount).IsGreaterThanOrEqualTo(5);
         await Assert.That(import.Notes.Any(n => n.Contains("paired=", StringComparison.Ordinal))).IsTrue();
+        await Assert.That(import.Notes.Any(n => n.Contains("Joined wall corners", StringComparison.Ordinal))).IsTrue();
+        await Assert.That(import.Notes.Any(n => n.Contains("wall-face gaps", StringComparison.Ordinal))).IsTrue();
 
         var avgThick = import.Document.Entities
             .Where(e => e.Kind == "wall")
