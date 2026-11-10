@@ -202,12 +202,16 @@ public static class CadBlueprintProjector
 
     private static float EstimateClearWidth(CadEntity e)
     {
+        // DXF importer stores clear width in Thickness for openings.
+        if (e.Thickness >= 0.4f)
+            return e.Thickness;
         if (e.Footprint is not { Count: >= 2 })
             return e.Thickness > 0 ? e.Thickness : 1f;
         var minX = e.Footprint.Min(p => p[0]);
         var maxX = e.Footprint.Max(p => p[0]);
         var minZ = e.Footprint.Min(p => p.Length > 2 ? p[2] : p[1]);
         var maxZ = e.Footprint.Max(p => p.Length > 2 ? p[2] : p[1]);
+        // Clear is the long AABB side; short side is wall thickness.
         return System.Math.Max(maxX - minX, maxZ - minZ);
     }
 

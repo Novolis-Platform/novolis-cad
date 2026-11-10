@@ -236,13 +236,16 @@ public static class CadBlueprintSheetSvg
                 CadBlueprintSheetLayout.PlanXZ(wall.A, out var ax, out var az);
                 CadBlueprintSheetLayout.PlanXZ(wall.B, out var bx, out var bz);
                 var thick = wall.Thickness > 1e-4f ? wall.Thickness : 0.15f;
-                AppendThickWall(g, ax, az, bx, bz, thick, layout);
+                AppendWallWithOpeningGaps(
+                    g, ax, az, bx, bz, thick, wall.Id, blueprint, levelIndex, layout);
             }
         });
 
         root.Group(g =>
         {
             ResolveLayer(g, sheet, "openings.all", "openings/all", "opening");
+            var planCx = (float)((layout.MinX + layout.MaxX) * 0.5);
+            var planCz = (float)((layout.MinZ + layout.MaxZ) * 0.5);
             foreach (var opening in blueprint.Openings)
             {
                 if (levelIndex is { } li && opening.LevelIndex != li) continue;
@@ -254,7 +257,7 @@ public static class CadBlueprintSheetSvg
                 else if (kind is "hatch" or "hole")
                     AppendHole(g, cx, cz, tx, tz, halfW, hostThick, layout);
                 else
-                    AppendDoor(g, cx, cz, tx, tz, halfW, hostThick, layout);
+                    AppendDoor(g, cx, cz, tx, tz, halfW, hostThick, planCx, planCz, layout);
             }
         });
 
@@ -263,6 +266,69 @@ public static class CadBlueprintSheetSvg
             ResolveLayer(g, sheet, "dims.primary", "dims/primary", "dimension");
             AppendOverallDims(g, layout);
         });
+    }
+
+    private static void AppendWallWithOpeningGaps(
+        SvgGroup g,
+        float ax,
+        float az,
+        float bx,
+        float bz,
+        float thickness,
+        Guid wallId,
+        CadBlueprint blueprint,
+        int? levelIndex,
+        CadBlueprintSheetLayout layout)
+    {
+        var dx = bx - ax;
+        var dz = bz - az;
+        var len = (float)System.Math.Sqrt(dx * dx + dz * dz);
+        if (len < 1e-6f) return;
+
+        var gaps = new List<(float T0, float T1)>();
+        foreach (var opening in blueprint.Openings)
+        {
+            if (levelIndex is { } li && opening.LevelIndex != li) continue;
+            if (opening.HostWallId != wallId) continue;
+            if (!TryOpeningAxis(opening, blueprint, out var cx, out var cz, out _, out _, out var halfW, out _))
+                continue;
+
+            var tx = dx / len;
+            var tz = dz / len;
+            var along = (cx - ax) * tx + (cz - az) * tz;
+            var pad = 0.02f;
+            var t0 = (along - halfW - pad) / len;
+            var t1 = (along + halfW + pad) / len;
+            if (t1 <= 0.001f || t0 >= 0.999f) continue;
+            gaps.Add((System.Math.Clamp(t0, 0f, 1f), System.Math.Clamp(t1, 0f, 1f)));
+        }
+
+        if (gaps.Count == 0)
+        {
+            AppendThickWall(g, ax, az, bx, bz, thickness, layout);
+            return;
+        }
+
+        gaps.Sort((a, b) => a.T0.CompareTo(b.T0));
+        var merged = new List<(float T0, float T1)>();
+        foreach (var gap in gaps)
+        {
+            if (merged.Count > 0 && gap.T0 <= merged[^1].T1 + 0.001f)
+                merged[^1] = (merged[^1].T0, System.Math.Max(merged[^1].T1, gap.T1));
+            else
+                merged.Add(gap);
+        }
+
+        var cursor = 0f;
+        foreach (var (t0, t1) in merged)
+        {
+            if (t0 - cursor > 0.01f)
+                AppendThickWall(g, ax + dx * cursor, az + dz * cursor, ax + dx * t0, az + dz * t0, thickness, layout);
+            cursor = System.Math.Max(cursor, t1);
+        }
+
+        if (1f - cursor > 0.01f)
+            AppendThickWall(g, ax + dx * cursor, az + dz * cursor, bx, bz, thickness, layout);
     }
 
     private static void AppendThickWall(
@@ -286,7 +352,7 @@ public static class CadBlueprintSheetSvg
             .LineTo(P(bx - hx, bz - hz, layout))
             .LineTo(P(ax - hx, az - hz, layout))
             .Close();
-        g.Path(path, p => p.Fill(WallFill).Stroke(Ink).StrokeWidth(0.2));
+        g.Path(path, p => p.Fill(WallFill).Stroke(Ink).StrokeWidth(0.25));
     }
 
     private static void AppendDoor(
@@ -297,31 +363,62 @@ public static class CadBlueprintSheetSvg
         float tz,
         float halfW,
         float hostThick,
+        float planCx,
+        float planCz,
         CadBlueprintSheetLayout layout)
     {
+        // Swing toward plan centre so exterior doors open inward by default.
         var nx = -tz;
         var nz = tx;
+        if ((planCx - cx) * nx + (planCz - cz) * nz < 0)
+        {
+            nx = -nx;
+            nz = -nz;
+        }
+
+        var clear = halfW * 2;
         var hingeX = cx - tx * halfW;
         var hingeZ = cz - tz * halfW;
         var latchX = cx + tx * halfW;
         var latchZ = cz + tz * halfW;
-        Punch(g, hingeX, hingeZ, latchX, latchZ, nx, nz, hostThick, layout);
+        var leafEndX = hingeX + nx * clear;
+        var leafEndZ = hingeZ + nz * clear;
 
-        var leafEndX = hingeX + nx * (halfW * 2);
-        var leafEndZ = hingeZ + nz * (halfW * 2);
+        // Jamb ticks (door stop marks) at the clear edges.
+        var j = System.Math.Max(hostThick * 0.55f, 0.06f);
+        g.Line(P(hingeX + nx * j, hingeZ + nz * j, layout), P(hingeX - nx * j, hingeZ - nz * j, layout), l =>
+            l.Stroke(Ink).StrokeWidth(0.45).Fill(SvgPaint.None));
+        g.Line(P(latchX + nx * j, latchZ + nz * j, layout), P(latchX - nx * j, latchZ - nz * j, layout), l =>
+            l.Stroke(Ink).StrokeWidth(0.45).Fill(SvgPaint.None));
+
         g.Line(P(hingeX, hingeZ, layout), P(leafEndX, leafEndZ, layout), l =>
-            l.Stroke(Ink).StrokeWidth(0.55).Fill(SvgPaint.None));
+            l.Stroke(Ink).StrokeWidth(0.9).Fill(SvgPaint.None));
 
         var pageHinge = P(hingeX, hingeZ, layout);
         var pageLatch = P(latchX, latchZ, layout);
         var pageLeaf = P(leafEndX, leafEndZ, layout);
         var radius = Dist(pageHinge, pageLatch);
         if (radius < 0.5) radius = Dist(pageHinge, pageLeaf);
+        var sweep = ArcSweepMinor(pageHinge, pageLeaf, pageLatch);
         var swing = new SvgPathData()
             .MoveTo(pageLeaf)
-            .ArcTo(radius, radius, 0, false, true, pageLatch);
+            .ArcTo(radius, radius, 0, false, sweep, pageLatch);
         g.Path(swing, p =>
-            p.Fill(SvgPaint.None).Stroke(SvgPaint.Color("#444")).StrokeWidth(0.28).StrokeDashArray([1.2, 0.8]));
+            p.Fill(SvgPaint.None).Stroke(SvgPaint.Color("#333")).StrokeWidth(0.35));
+    }
+
+    /// <summary>Pick SVG sweep so the minor arc from <paramref name="from"/> to <paramref name="to"/> is used.</summary>
+    private static bool ArcSweepMinor(SvgPoint center, SvgPoint from, SvgPoint to)
+    {
+        var fx = from.X - center.X;
+        var fy = from.Y - center.Y;
+        var tx = to.X - center.X;
+        var ty = to.Y - center.Y;
+        // SVG y-down: sweep=1 is clockwise. Positive cross (fx,fy)×(tx,ty) is CCW in y-down? 
+        // In y-down, (1,0)×(0,1)=+1 points "into the page" same as y-up math for x-right y-down...
+        // Clockwise from +X toward +Y: cross of +X with +Y = 1, and clockwise needs sweep=1.
+        var cross = fx * ty - fy * tx;
+        return cross > 0;
     }
 
     private static void AppendWindow(
@@ -340,14 +437,13 @@ public static class CadBlueprintSheetSvg
         var aZ = cz - tz * halfW;
         var bX = cx + tx * halfW;
         var bZ = cz + tz * halfW;
-        Punch(g, aX, aZ, bX, bZ, nx, nz, hostThick, layout);
         var t = hostThick * 0.35f;
         g.Line(P(aX + nx * t, aZ + nz * t, layout), P(bX + nx * t, bZ + nz * t, layout), l =>
-            l.Stroke(WindowStroke).StrokeWidth(0.4));
+            l.Stroke(WindowStroke).StrokeWidth(0.45));
         g.Line(P(aX - nx * t, aZ - nz * t, layout), P(bX - nx * t, bZ - nz * t, layout), l =>
-            l.Stroke(WindowStroke).StrokeWidth(0.4));
+            l.Stroke(WindowStroke).StrokeWidth(0.45));
         g.Line(P(aX, aZ, layout), P(bX, bZ, layout), l =>
-            l.Stroke(GlassStroke).StrokeWidth(0.35));
+            l.Stroke(GlassStroke).StrokeWidth(0.4));
     }
 
     private static void AppendHole(
@@ -375,27 +471,6 @@ public static class CadBlueprintSheetSvg
             .Close();
         g.Path(path, p =>
             p.Fill(Paper).Stroke(SvgPaint.Color("#666")).StrokeWidth(0.25).StrokeDashArray([1, 0.6]));
-    }
-
-    private static void Punch(
-        SvgGroup g,
-        float aX,
-        float aZ,
-        float bX,
-        float bZ,
-        float nx,
-        float nz,
-        float hostThick,
-        CadBlueprintSheetLayout layout)
-    {
-        var punch = System.Math.Max(hostThick * 0.7f + 0.05f, 0.14f);
-        var path = new SvgPathData()
-            .MoveTo(P(aX + nx * punch, aZ + nz * punch, layout))
-            .LineTo(P(bX + nx * punch, bZ + nz * punch, layout))
-            .LineTo(P(bX - nx * punch, bZ - nz * punch, layout))
-            .LineTo(P(aX - nx * punch, aZ - nz * punch, layout))
-            .Close();
-        g.Path(path, p => p.Fill(Paper).Stroke(SvgPaint.None));
     }
 
     private static void AppendOverallDims(SvgGroup g, CadBlueprintSheetLayout layout)
@@ -450,11 +525,47 @@ public static class CadBlueprintSheetSvg
         cx = cz = tx = tz = halfW = 0;
         hostThick = 0.15f;
 
+        // Prefer host wall tangent — footprint AABB alone forces axis-alignment and
+        // makes door leaves / arcs skew off the wall.
         if (opening.HostWallId is { } hid)
         {
             var wall = blueprint.Walls.FirstOrDefault(w => w.Id == hid);
-            if (wall is not null && wall.Thickness > 1e-4f)
-                hostThick = wall.Thickness;
+            if (wall is { A: { Length: >= 3 }, B: { Length: >= 3 } })
+            {
+                CadBlueprintSheetLayout.PlanXZ(wall.A, out var ax, out var az);
+                CadBlueprintSheetLayout.PlanXZ(wall.B, out var bx, out var bz);
+                var wdx = bx - ax;
+                var wdz = bz - az;
+                var wlen = (float)System.Math.Sqrt(wdx * wdx + wdz * wdz);
+                if (wlen > 1e-4f)
+                {
+                    tx = wdx / wlen;
+                    tz = wdz / wlen;
+                    hostThick = wall.Thickness > 1e-4f ? wall.Thickness : 0.15f;
+
+                    float midX, midZ;
+                    if (opening.Footprint is { Count: >= 2 })
+                    {
+                        midX = opening.Footprint.Average(p => p[0]);
+                        midZ = opening.Footprint.Average(p => p.Length > 2 ? p[2] : p[1]);
+                    }
+                    else
+                    {
+                        midX = (ax + bx) * 0.5f;
+                        midZ = (az + bz) * 0.5f;
+                    }
+
+                    var along = (midX - ax) * tx + (midZ - az) * tz;
+                    along = System.Math.Clamp(along, 0f, wlen);
+                    cx = ax + tx * along;
+                    cz = az + tz * along;
+
+                    halfW = opening.ClearWidth > 1e-3f
+                        ? opening.ClearWidth * 0.5f
+                        : EstimateHalfWidthFromFootprint(opening, tx, tz);
+                    return halfW > 1e-4f;
+                }
+            }
         }
 
         if (opening.Footprint is not { Count: >= 2 })
@@ -484,6 +595,24 @@ public static class CadBlueprintSheetSvg
         }
 
         return halfW > 1e-4f;
+    }
+
+    private static float EstimateHalfWidthFromFootprint(CadBlueprintOpening opening, float tx, float tz)
+    {
+        if (opening.Footprint is not { Count: >= 2 })
+            return 0.4f;
+        var min = float.PositiveInfinity;
+        var max = float.NegativeInfinity;
+        foreach (var p in opening.Footprint)
+        {
+            var x = p[0];
+            var z = p.Length > 2 ? p[2] : p[1];
+            var along = x * tx + z * tz;
+            if (along < min) min = along;
+            if (along > max) max = along;
+        }
+
+        return System.Math.Max(0.2f, (max - min) * 0.5f);
     }
 
     private static SvgPathData RingPath(IReadOnlyList<float[]> ring, CadBlueprintSheetLayout layout)

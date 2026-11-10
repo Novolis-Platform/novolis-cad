@@ -133,6 +133,7 @@ public static class DxfCadImporter
         }
 
         var walls = CommitWalls(doc, wallLayerId, wallFaces, options, notes);
+        walls = MergeCollinearWalls(doc, notes);
         var openings = CommitOpenings(doc, openingLayerId, openingCandidates, options);
         ApplyTextLabels(dxf, doc, scale);
         notes.Add($"Lifted walls={walls} spaces={spaces} openings={openings} skipped={skipped}.");
@@ -403,6 +404,111 @@ public static class DxfCadImporter
             Height = options.WallHeightMeters,
             LayerId = layerId,
         });
+    }
+
+    /// <summary>
+    /// Collapse near-collinear overlapping wall runs so door gaps are not
+    /// painted over by a twin centerline from a second face pair.
+    /// </summary>
+    private static int MergeCollinearWalls(CadDocument doc, List<string> notes)
+    {
+        var walls = doc.Entities.Where(e => e.Kind == "wall" && e.A is { Length: >= 3 } && e.B is { Length: >= 3 })
+            .ToList();
+        if (walls.Count < 2)
+            return walls.Count;
+
+        var remove = new HashSet<CadEntity>();
+        var merged = 0;
+
+        for (var i = 0; i < walls.Count; i++)
+        {
+            if (remove.Contains(walls[i])) continue;
+            var a = walls[i];
+            var ax = a.A![0];
+            var az = a.A[2];
+            var bx = a.B![0];
+            var bz = a.B[2];
+            var adx = bx - ax;
+            var adz = bz - az;
+            var alen = (float)System.Math.Sqrt(adx * adx + adz * adz);
+            if (alen < 1e-4f) continue;
+            var atx = adx / alen;
+            var atz = adz / alen;
+            var anx = -atz;
+            var anz = atx;
+            var aThick = a.Thickness > 1e-4f ? a.Thickness : 0.15f;
+
+            for (var j = i + 1; j < walls.Count; j++)
+            {
+                if (remove.Contains(walls[j])) continue;
+                var b = walls[j];
+                var cx = b.A![0];
+                var cz = b.A[2];
+                var dx = b.B![0];
+                var dz = b.B[2];
+                var bdx = dx - cx;
+                var bdz = dz - cz;
+                var blen = (float)System.Math.Sqrt(bdx * bdx + bdz * bdz);
+                if (blen < 1e-4f) continue;
+                var btx = bdx / blen;
+                var btz = bdz / blen;
+                if (System.Math.Abs(atx * btx + atz * btz) < 0.98f)
+                    continue;
+
+                var bmx = (cx + dx) * 0.5f;
+                var bmz = (cz + dz) * 0.5f;
+                var sep = System.Math.Abs((bmx - ax) * anx + (bmz - az) * anz);
+                var bThick = b.Thickness > 1e-4f ? b.Thickness : 0.15f;
+                if (sep > System.Math.Max(aThick, bThick) * 0.55f + 0.04f)
+                    continue;
+
+                // Project both segments onto A's tangent; require overlap.
+                float Proj(float x, float z) => (x - ax) * atx + (z - az) * atz;
+                var a0 = 0f;
+                var a1 = alen;
+                var b0 = Proj(cx, cz);
+                var b1 = Proj(dx, dz);
+                if (b0 > b1) (b0, b1) = (b1, b0);
+                var left = System.Math.Max(a0, b0);
+                var right = System.Math.Min(a1, b1);
+                if (right - left < 0.25f)
+                    continue;
+
+                var union0 = System.Math.Min(a0, b0);
+                var union1 = System.Math.Max(a1, b1);
+                a.A = [ax + atx * union0, 0f, az + atz * union0];
+                a.B = [ax + atx * union1, 0f, az + atz * union1];
+                a.Thickness = System.Math.Max(aThick, bThick);
+                alen = union1 - union0;
+                // Keep `a` frame origin at new A for subsequent merges.
+                ax = a.A[0];
+                az = a.A[2];
+                bx = a.B[0];
+                bz = a.B[2];
+                adx = bx - ax;
+                adz = bz - az;
+                alen = (float)System.Math.Sqrt(adx * adx + adz * adz);
+                atx = adx / alen;
+                atz = adz / alen;
+                anx = -atz;
+                anz = atx;
+                aThick = a.Thickness;
+                remove.Add(b);
+                merged++;
+            }
+        }
+
+        foreach (var dead in remove)
+            doc.Entities.Remove(dead);
+
+        // Renumber surviving walls.
+        var n = 0;
+        foreach (var w in doc.Entities.Where(e => e.Kind == "wall"))
+            w.Name = $"W-{++n}";
+
+        if (merged > 0)
+            notes.Add($"Merged {merged} overlapping collinear wall run(s).");
+        return doc.Entities.Count(e => e.Kind == "wall");
     }
 
     private static bool TryAddSpace(
