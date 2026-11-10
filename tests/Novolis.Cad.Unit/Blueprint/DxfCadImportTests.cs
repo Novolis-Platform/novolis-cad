@@ -25,6 +25,13 @@ public sealed class DxfCadImportTests
             n.Contains("Merged", StringComparison.Ordinal)
             && n.Contains("across openings", StringComparison.Ordinal))).IsTrue();
         await Assert.That(import.UnitScaleMeters).IsEqualTo(0.001);
+        await Assert.That(import.Views.Count).IsEqualTo(3);
+        await Assert.That(import.Views.Any(v => v.Kind == "plan")).IsTrue();
+        await Assert.That(import.Views.Any(v => v.Kind == "section")).IsTrue();
+        await Assert.That(import.Views.Any(v => v.Kind == "elevation")).IsTrue();
+        await Assert.That(import.StrokeCount).IsGreaterThan(50);
+        await Assert.That(import.Document.Properties is not null
+            && import.Document.Properties.ContainsKey("nbp.drawingViews")).IsTrue();
 
         var walls = import.Document.Entities
             .Where(e => e.Kind == "wall" && e.A is { Length: >= 3 } && e.B is { Length: >= 3 })
@@ -87,11 +94,44 @@ public sealed class DxfCadImportTests
         });
 
         await Assert.That(export.Ok).IsTrue();
-        await Assert.That(export.WrittenPaths.Any(p => p.EndsWith(".html", StringComparison.Ordinal))).IsTrue();
-        await Assert.That(export.WrittenPaths.Any(p => p.EndsWith(".svg", StringComparison.Ordinal))).IsTrue();
-        await Assert.That(export.WrittenPaths.Any(p => p.EndsWith(".pdf", StringComparison.Ordinal))).IsTrue();
+        var bp = export.Blueprint!;
+        await Assert.That(bp.Sheets.Count).IsEqualTo(3);
+        var htmlPaths = export.WrittenPaths.Where(p => p.EndsWith(".html", StringComparison.Ordinal)).ToList();
+        var svgPaths = export.WrittenPaths.Where(p => p.EndsWith(".svg", StringComparison.Ordinal)).ToList();
+        var pdfPaths = export.WrittenPaths.Where(p => p.EndsWith(".pdf", StringComparison.Ordinal)).ToList();
+        await Assert.That(htmlPaths.Count).IsEqualTo(3);
+        await Assert.That(svgPaths.Count).IsEqualTo(3);
+        await Assert.That(pdfPaths.Count).IsEqualTo(3);
 
-        var html = await File.ReadAllTextAsync(export.WrittenPaths.First(p => p.EndsWith(".html", StringComparison.Ordinal)));
+        foreach (var svgPath in svgPaths)
+        {
+            var svg = await File.ReadAllTextAsync(svgPath);
+            await Assert.That(svg).Contains("fill=\"#fff\"");
+            await Assert.That(svg.Contains("#f7f4ea")).IsFalse();
+            await Assert.That(svg).Contains("data-nbp-iso=\"7200\"");
+        }
+
+        var kinds = bp.Sheets
+            .SelectMany(s => s.Views)
+            .Select(v => v.Kind)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        await Assert.That(kinds.Contains("plan")).IsTrue();
+        await Assert.That(kinds.Contains("section")).IsTrue();
+        await Assert.That(kinds.Contains("elevation")).IsTrue();
+
+        var sectionSheet = bp.Sheets.First(s =>
+            s.Views.Any(v => v.Kind.Equals("section", StringComparison.OrdinalIgnoreCase)));
+        await Assert.That(sectionSheet.Views[0].Strokes.Count).IsGreaterThan(10);
+
+        var elevSheet = bp.Sheets.First(s =>
+            s.Views.Any(v => v.Kind.Equals("elevation", StringComparison.OrdinalIgnoreCase)));
+        await Assert.That(elevSheet.Views[0].Strokes.Count).IsGreaterThan(5);
+
+        var planSheet = bp.Sheets.First(s =>
+            s.Views.Any(v => v.Kind.Equals("plan", StringComparison.OrdinalIgnoreCase)));
+        await Assert.That(planSheet.Views[0].Strokes.Count).IsGreaterThan(10);
+
+        var html = await File.ReadAllTextAsync(htmlPaths[0]);
         await Assert.That(html).Contains("<svg");
         await Assert.That(html).Contains("data-nbp-iso=\"7200\"");
     }

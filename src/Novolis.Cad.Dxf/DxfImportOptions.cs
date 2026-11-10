@@ -29,13 +29,21 @@ public sealed class DxfImportOptions
 
     /// <summary>
     /// Layers matching these hints are never lifted as walls/openings/spaces
-    /// (dims, casework, structure notes, temp geometry).
+    /// (dims, casework, structure notes, temp geometry). Stroke packs may still
+    /// lift furniture / dims / grids via a separate pass.
     /// </summary>
     public IReadOnlyList<string> ExcludeLayerHints { get; init; } =
     [
         "DIM", "TEXT", "NOTE", "HATCH", "CASE", "JOIST", "BEAM",
         "OVERHANG", "HEADER", "TEMP", "FURN", "FIXT", "ANNOT", "GRID",
     ];
+
+    /// <summary>
+    /// Layers skipped when lifting 2D stroke packs for plan / section / elevation pages.
+    /// Keep this narrow so furniture, dims, and grids survive.
+    /// </summary>
+    public IReadOnlyList<string> StrokeExcludeLayerHints { get; init; } =
+        ["HATCH", "TEMP"];
 
     /// <summary>When true, also treat closed LWPOLYLINE on wall layers as spaces.</summary>
     public bool ClosedWallPolylinesAsSpaces { get; init; }

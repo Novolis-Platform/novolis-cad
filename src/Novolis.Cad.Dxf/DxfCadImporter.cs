@@ -1,3 +1,4 @@
+using System.Text.Json;
 using ACadSharp.Entities;
 using ACadSharp.IO;
 using ACadSharp.Types.Units;
@@ -40,6 +41,7 @@ public static class DxfCadImporter
         var wallLayerId = Guid.Parse("d1000000-0000-4000-8000-000000000001");
         var openingLayerId = Guid.Parse("d1000000-0000-4000-8000-000000000002");
         var spaceLayerId = Guid.Parse("d1000000-0000-4000-8000-000000000003");
+        var strokeLayerId = Guid.Parse("d1000000-0000-4000-8000-000000000004");
 
         var doc = new CadDocument
         {
@@ -53,6 +55,7 @@ public static class DxfCadImporter
         doc.Layers.Add(new CadLayer { Id = wallLayerId, Name = "A-WALL" });
         doc.Layers.Add(new CadLayer { Id = openingLayerId, Name = "A-OPENING" });
         doc.Layers.Add(new CadLayer { Id = spaceLayerId, Name = "A-SPACE" });
+        doc.Layers.Add(new CadLayer { Id = strokeLayerId, Name = "A-DRAWING" });
 
         var spaces = 0;
         var skipped = 0;
@@ -161,7 +164,15 @@ public static class DxfCadImporter
         openings += DetectOpeningsFromClears(doc, openingLayerId, openingClears, options, notes);
         walls = doc.Entities.Count(e => e.Kind == "wall");
         ApplyTextLabels(planEntities, doc, scale);
-        notes.Add($"Lifted walls={walls} spaces={spaces} openings={openings} skipped={skipped}.");
+
+        var views = LiftDrawingViews(dxf, doc, strokeLayerId, scale, options, notes);
+        PersistDrawingViewCatalog(doc, views);
+        var strokeCount = doc.Entities.Count(e => e.Kind is "polyline" or "text"
+            && e.Properties is not null
+            && e.Properties.ContainsKey("nbp.viewId"));
+        notes.Add(
+            $"Lifted walls={walls} spaces={spaces} openings={openings} strokes={strokeCount} "
+            + $"views={views.Count} skipped={skipped}.");
 
         return new DxfImportResult
         {
@@ -172,6 +183,8 @@ public static class DxfCadImporter
             SpaceCount = spaces,
             OpeningCount = openings,
             SkippedEntityCount = skipped,
+            StrokeCount = strokeCount,
+            Views = views,
             Notes = notes,
         };
     }
@@ -204,11 +217,42 @@ public static class DxfCadImporter
         || name.Contains("_GF", StringComparison.OrdinalIgnoreCase)
         || name.Contains("-GF", StringComparison.OrdinalIgnoreCase);
 
-    private static bool NameLooksLikeSectionOrElevation(string name) =>
-        name.Contains("SECTION", StringComparison.OrdinalIgnoreCase)
-        || name.Contains("ELEV", StringComparison.OrdinalIgnoreCase)
-        || name.Contains("DETAIL", StringComparison.OrdinalIgnoreCase)
+    private static bool NameLooksLikeSection(string name) =>
+        name.Contains("SECTION", StringComparison.OrdinalIgnoreCase);
+
+    private static bool NameLooksLikeElevation(string name) =>
+        name.Contains("ELEV", StringComparison.OrdinalIgnoreCase)
+        && !NameLooksLikeSection(name);
+
+    private static bool NameLooksLikeDetailOr3d(string name) =>
+        name.Contains("DETAIL", StringComparison.OrdinalIgnoreCase)
         || name.Contains("3D", StringComparison.OrdinalIgnoreCase);
+
+    private static bool NameLooksLikeSectionOrElevation(string name) =>
+        NameLooksLikeSection(name)
+        || NameLooksLikeElevation(name)
+        || NameLooksLikeDetailOr3d(name);
+
+    private static string? ClassifyDrawingViewKind(string blockName)
+    {
+        if (NameLooksLikeSection(blockName))
+            return "section";
+        if (NameLooksLikeElevation(blockName))
+            return "elevation";
+        if (NameLooksLikePlan(blockName))
+            return "plan";
+        if (NameLooksLikeDetailOr3d(blockName))
+            return "detail";
+        return null;
+    }
+
+    private static PlanXform InsertXform(Insert ins) =>
+        new(
+            ins.InsertPoint.X,
+            ins.InsertPoint.Y,
+            ins.XScale == 0 ? 1 : ins.XScale,
+            ins.YScale == 0 ? 1 : ins.YScale,
+            ins.Rotation * System.Math.PI / 180.0);
 
     /// <summary>
     /// Model-space entities, exploding plan-like INSERT blocks (common sheet DXF layout).
@@ -233,12 +277,7 @@ public static class DxfCadImporter
                 + string.Join(", ", planInserts.Select(i => i.Block!.Name).Distinct()));
             foreach (var ins in planInserts)
             {
-                var xform = new PlanXform(
-                    ins.InsertPoint.X,
-                    ins.InsertPoint.Y,
-                    ins.XScale == 0 ? 1 : ins.XScale,
-                    ins.YScale == 0 ? 1 : ins.YScale,
-                    ins.Rotation * System.Math.PI / 180.0);
+                var xform = InsertXform(ins);
                 foreach (var e in ins.Block!.Entities)
                     yield return (e, xform);
             }
@@ -253,6 +292,303 @@ public static class DxfCadImporter
             yield return (e, PlanXform.Identity);
         }
     }
+
+    private static List<DxfDrawingView> LiftDrawingViews(
+        ACadSharp.CadDocument dxf,
+        CadDocument doc,
+        Guid strokeLayerId,
+        double scale,
+        DxfImportOptions options,
+        List<string> notes)
+    {
+        var inserts = dxf.Entities.OfType<Insert>().Where(i => i.Block is not null).ToList();
+        var discovered = new List<(Insert Ins, string Kind, string BlockName)>();
+        foreach (var ins in inserts)
+        {
+            var blockName = ins.Block!.Name;
+            var kind = ClassifyDrawingViewKind(blockName);
+            if (kind is null || kind is "detail")
+                continue;
+            discovered.Add((ins, kind, blockName));
+        }
+
+        // Prefer one canonical INSERT per kind (first wins) so sheet packs stay tidy.
+        var byKind = discovered
+            .GroupBy(d => d.Kind, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .OrderBy(d => d.Kind switch
+            {
+                "plan" => 0,
+                "section" => 1,
+                "elevation" => 2,
+                _ => 9,
+            })
+            .ToList();
+
+        if (byKind.Count == 0)
+        {
+            notes.Add("No named PLAN/SECTION/ELEVATION INSERT views for stroke packs.");
+            return [];
+        }
+
+        notes.Add(
+            $"Drawing views: "
+            + string.Join(", ", byKind.Select(d => $"{d.Kind}:{d.BlockName}")));
+
+        var views = new List<DxfDrawingView>();
+        var kindCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (ins, kind, blockName) in byKind)
+        {
+            kindCounts.TryGetValue(kind, out var n);
+            n++;
+            kindCounts[kind] = n;
+            var viewId = $"{kind}-{n}";
+            var label = HumanViewLabel(kind, blockName);
+            var xform = InsertXform(ins);
+            var strokes = 0;
+            var texts = 0;
+            foreach (var entity in ins.Block!.Entities)
+            {
+                if (TryLiftStrokeEntity(
+                        doc, strokeLayerId, entity, xform, scale, options, viewId, kind, ref texts))
+                    strokes++;
+            }
+
+            views.Add(new DxfDrawingView
+            {
+                Id = viewId,
+                Kind = kind,
+                Label = label,
+                ScaleHint = null,
+                SourceBlockName = blockName,
+                StrokeCount = strokes,
+                TextCount = texts,
+            });
+        }
+
+        return views;
+    }
+
+    private static string HumanViewLabel(string kind, string blockName) =>
+        kind switch
+        {
+            "plan" => "Ground floor plan",
+            "section" => "Section",
+            "elevation" => "Elevation",
+            _ => blockName,
+        };
+
+    private static void PersistDrawingViewCatalog(CadDocument doc, IReadOnlyList<DxfDrawingView> views)
+    {
+        if (views.Count == 0)
+            return;
+
+        doc.Properties ??= new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        var payload = views.Select(v => new Dictionary<string, object?>
+        {
+            ["id"] = v.Id,
+            ["kind"] = v.Kind,
+            ["label"] = v.Label,
+            ["scaleHint"] = v.ScaleHint,
+            ["sourceBlockName"] = v.SourceBlockName,
+            ["strokeCount"] = v.StrokeCount,
+            ["textCount"] = v.TextCount,
+        }).ToList();
+        doc.Properties["nbp.drawingViews"] = JsonSerializer.SerializeToElement(payload);
+    }
+
+    private static bool TryLiftStrokeEntity(
+        CadDocument doc,
+        Guid strokeLayerId,
+        Entity entity,
+        PlanXform xform,
+        double scale,
+        DxfImportOptions options,
+        string viewId,
+        string viewKind,
+        ref int texts)
+    {
+        var layerName = entity.Layer?.Name ?? "";
+        if (Matches(layerName, options.StrokeExcludeLayerHints))
+            return false;
+
+        var stroke = ClassifyStrokeStyle(layerName);
+        switch (entity)
+        {
+            case Line line:
+            {
+                var a = Map(xform, line.StartPoint.X, line.StartPoint.Y);
+                var b = Map(xform, line.EndPoint.X, line.EndPoint.Y);
+                AddPolylineStroke(
+                    doc, strokeLayerId, viewId, viewKind, stroke, layerName, closed: false,
+                    [(a.X, a.Y), (b.X, b.Y)], scale);
+                return true;
+            }
+            case LwPolyline poly:
+            {
+                var pts = poly.Vertices
+                    .Select(v => Map(xform, v.Location.X, v.Location.Y))
+                    .Select(p => (p.X, p.Y))
+                    .ToList();
+                if (pts.Count < 2)
+                    return false;
+                AddPolylineStroke(
+                    doc, strokeLayerId, viewId, viewKind, stroke, layerName, poly.IsClosed, pts, scale);
+                return true;
+            }
+            case Arc arc:
+            {
+                var pts = SampleArc(xform, arc, segments: 24);
+                if (pts.Count < 2)
+                    return false;
+                AddPolylineStroke(
+                    doc, strokeLayerId, viewId, viewKind, stroke, layerName, closed: false, pts, scale);
+                return true;
+            }
+            case Circle circle:
+            {
+                var pts = SampleCircle(xform, circle, segments: 32);
+                AddPolylineStroke(
+                    doc, strokeLayerId, viewId, viewKind, stroke, layerName, closed: true, pts, scale);
+                return true;
+            }
+            case TextEntity text:
+            {
+                if (string.IsNullOrWhiteSpace(text.Value))
+                    return false;
+                var origin = Map(xform, text.InsertPoint.X, text.InsertPoint.Y);
+                var height = (float)System.Math.Max(0.05, text.Height * scale);
+                AddTextStroke(
+                    doc, strokeLayerId, viewId, viewKind, layerName,
+                    CleanLabel(text.Value), origin.X, origin.Y, height, scale);
+                texts++;
+                return true;
+            }
+            case MText mtext:
+            {
+                var raw = string.IsNullOrWhiteSpace(mtext.PlainText) ? mtext.Value : mtext.PlainText;
+                if (string.IsNullOrWhiteSpace(raw))
+                    return false;
+                var origin = Map(xform, mtext.InsertPoint.X, mtext.InsertPoint.Y);
+                var height = (float)System.Math.Max(0.05, mtext.Height * scale);
+                AddTextStroke(
+                    doc, strokeLayerId, viewId, viewKind, layerName,
+                    CleanLabel(raw), origin.X, origin.Y, height, scale);
+                texts++;
+                return true;
+            }
+            default:
+                return false;
+        }
+    }
+
+    private static string ClassifyStrokeStyle(string layerName)
+    {
+        if (Matches(layerName, ["DIM", "ANNOT"]))
+            return "dim";
+        if (Matches(layerName, ["GRID", "AXIS"]))
+            return "dashed";
+        if (Matches(layerName, ["WALL", "A-WALL", "ROOF", "ELEV"]))
+            return "heavy";
+        return "solid";
+    }
+
+    private static List<(double X, double Y)> SampleArc(PlanXform xform, Arc arc, int segments)
+    {
+        var pts = new List<(double X, double Y)>(segments + 1);
+        var start = arc.StartAngle;
+        var end = arc.EndAngle;
+        // ACadSharp angles are radians; ensure sweep progresses forward.
+        var sweep = end - start;
+        if (sweep <= 1e-9)
+            sweep += System.Math.PI * 2;
+        for (var i = 0; i <= segments; i++)
+        {
+            var t = i / (double)segments;
+            var ang = start + sweep * t;
+            var px = arc.Center.X + arc.Radius * System.Math.Cos(ang);
+            var py = arc.Center.Y + arc.Radius * System.Math.Sin(ang);
+            pts.Add(Map(xform, px, py));
+        }
+
+        return pts;
+    }
+
+    private static List<(double X, double Y)> SampleCircle(PlanXform xform, Circle circle, int segments)
+    {
+        var pts = new List<(double X, double Y)>(segments);
+        for (var i = 0; i < segments; i++)
+        {
+            var ang = System.Math.PI * 2 * i / segments;
+            var px = circle.Center.X + circle.Radius * System.Math.Cos(ang);
+            var py = circle.Center.Y + circle.Radius * System.Math.Sin(ang);
+            pts.Add(Map(xform, px, py));
+        }
+
+        return pts;
+    }
+
+    private static void AddPolylineStroke(
+        CadDocument doc,
+        Guid strokeLayerId,
+        string viewId,
+        string viewKind,
+        string stroke,
+        string layerName,
+        bool closed,
+        IReadOnlyList<(double X, double Y)> pts,
+        double scale)
+    {
+        var points = new List<float[]>(pts.Count);
+        foreach (var (x, y) in pts)
+            points.Add([(float)(x * scale), 0f, (float)(y * scale)]);
+
+        doc.Entities.Add(new CadEntity
+        {
+            Kind = "polyline",
+            Name = $"{viewId}:{layerName}",
+            LayerId = strokeLayerId,
+            Closed = closed,
+            Points = points,
+            Properties = ViewProps(viewId, viewKind, stroke, layerName),
+        });
+    }
+
+    private static void AddTextStroke(
+        CadDocument doc,
+        Guid strokeLayerId,
+        string viewId,
+        string viewKind,
+        string layerName,
+        string text,
+        double x,
+        double y,
+        float height,
+        double scale)
+    {
+        doc.Entities.Add(new CadEntity
+        {
+            Kind = "text",
+            Name = text,
+            LayerId = strokeLayerId,
+            Height = height,
+            Center = [(float)(x * scale), 0f, (float)(y * scale)],
+            Properties = ViewProps(viewId, viewKind, "dim", layerName),
+        });
+    }
+
+    private static Dictionary<string, JsonElement> ViewProps(
+        string viewId,
+        string viewKind,
+        string stroke,
+        string layerName) =>
+        new(StringComparer.Ordinal)
+        {
+            ["nbp.viewId"] = JsonSerializer.SerializeToElement(viewId),
+            ["nbp.viewKind"] = JsonSerializer.SerializeToElement(viewKind),
+            ["nbp.stroke"] = JsonSerializer.SerializeToElement(stroke),
+            ["nbp.layer"] = JsonSerializer.SerializeToElement(layerName),
+        };
 
     private static bool IsWallLayer(string layerName, DxfImportOptions options) =>
         Matches(layerName, options.WallLayerHints)

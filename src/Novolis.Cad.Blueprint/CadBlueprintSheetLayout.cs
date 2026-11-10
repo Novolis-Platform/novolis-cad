@@ -38,7 +38,7 @@ public sealed class CadBlueprintSheetLayout
 
         var size = sheet.Sheet ?? CadBlueprintSheetSize.A1Landscape();
         var sternLeft = sheet.Orientation.Contains("stern-left", StringComparison.OrdinalIgnoreCase);
-        var (minX, maxX, minZ, maxZ) = CollectBounds(blueprint);
+        var (minX, maxX, minZ, maxZ) = CollectBounds(blueprint, sheet);
 
         const double pad = 32.0;
         // Keep plan clear of the ISO 7200 block (bottom-right).
@@ -80,7 +80,9 @@ public sealed class CadBlueprintSheetLayout
         z = p.Length > 2 ? p[2] : p.Length > 1 ? p[1] : 0;
     }
 
-    private static (double MinX, double MaxX, double MinZ, double MaxZ) CollectBounds(CadBlueprint blueprint)
+    private static (double MinX, double MaxX, double MinZ, double MaxZ) CollectBounds(
+        CadBlueprint blueprint,
+        CadBlueprintSheet sheet)
     {
         var minX = double.PositiveInfinity;
         var maxX = double.NegativeInfinity;
@@ -97,38 +99,63 @@ public sealed class CadBlueprintSheetLayout
             maxZ = System.Math.Max(maxZ, z);
         }
 
-        foreach (var shell in blueprint.Shells)
+        var views = sheet.Views;
+        var strokeOnly = views.Count > 0
+            && views.All(v => v.Kind is "section" or "elevation" or "profile" or "detail");
+
+        if (!strokeOnly)
         {
-            if (shell.PlanRing is null) continue;
-            foreach (var p in shell.PlanRing)
+            foreach (var shell in blueprint.Shells)
             {
-                PlanXZ(p, out var x, out var z);
-                Acc(x, z);
+                if (shell.PlanRing is null) continue;
+                foreach (var p in shell.PlanRing)
+                {
+                    PlanXZ(p, out var x, out var z);
+                    Acc(x, z);
+                }
+            }
+
+            foreach (var space in blueprint.Spaces)
+            {
+                if (space.Footprint is null) continue;
+                foreach (var p in space.Footprint)
+                {
+                    PlanXZ(p, out var x, out var z);
+                    Acc(x, z);
+                }
+            }
+
+            foreach (var wall in blueprint.Walls)
+            {
+                if (wall.A is not null) { PlanXZ(wall.A, out var x, out var z); Acc(x, z); }
+                if (wall.B is not null) { PlanXZ(wall.B, out var x, out var z); Acc(x, z); }
+            }
+
+            foreach (var opening in blueprint.Openings)
+            {
+                if (opening.Footprint is null) continue;
+                foreach (var p in opening.Footprint)
+                {
+                    PlanXZ(p, out var x, out var z);
+                    Acc(x, z);
+                }
             }
         }
 
-        foreach (var space in blueprint.Spaces)
+        foreach (var view in views)
         {
-            if (space.Footprint is null) continue;
-            foreach (var p in space.Footprint)
+            foreach (var stroke in view.Strokes)
             {
-                PlanXZ(p, out var x, out var z);
-                Acc(x, z);
+                foreach (var p in stroke.Points)
+                {
+                    PlanXZ(p, out var x, out var z);
+                    Acc(x, z);
+                }
             }
-        }
 
-        foreach (var wall in blueprint.Walls)
-        {
-            if (wall.A is not null) { PlanXZ(wall.A, out var x, out var z); Acc(x, z); }
-            if (wall.B is not null) { PlanXZ(wall.B, out var x, out var z); Acc(x, z); }
-        }
-
-        foreach (var opening in blueprint.Openings)
-        {
-            if (opening.Footprint is null) continue;
-            foreach (var p in opening.Footprint)
+            foreach (var text in view.Texts)
             {
-                PlanXZ(p, out var x, out var z);
+                PlanXZ(text.Position, out var x, out var z);
                 Acc(x, z);
             }
         }

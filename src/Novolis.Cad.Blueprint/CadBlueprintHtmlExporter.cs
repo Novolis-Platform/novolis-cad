@@ -70,7 +70,7 @@ public static class CadBlueprintHtmlExporter
     private static void AppendStyles(CssStylesheet css, CadBlueprintSheet sheet)
     {
         css.Raw("""
-            :root { --nbp-sheet:#fff; --nbp-ink:#111; --nbp-accent:#5a9fd4; }
+            :root { --nbp-sheet:#fff; --nbp-ink:#000; --nbp-accent:#333; }
             @page { size: 841mm 594mm; margin: 0; }
             html, body { margin:0; padding:0; background:#fff; color:#111; font:13px/1.35 system-ui,sans-serif; }
             #nbp-stage { margin:0; padding:0; }

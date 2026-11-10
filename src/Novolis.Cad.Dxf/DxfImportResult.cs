@@ -18,5 +18,9 @@ public sealed class DxfImportResult
 
     public int SkippedEntityCount { get; init; }
 
+    public int StrokeCount { get; init; }
+
+    public IReadOnlyList<DxfDrawingView> Views { get; init; } = [];
+
     public IReadOnlyList<string> Notes { get; init; } = [];
 }

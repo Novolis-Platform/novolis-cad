@@ -9,17 +9,17 @@ namespace Novolis.Cad.Blueprint;
 /// </summary>
 public static class CadBlueprintSheetSvg
 {
-    private static readonly SvgPaint Ink = SvgPaint.Color("#111");
-    private static readonly SvgPaint Paper = SvgPaint.Color("#f7f4ea");
+    private static readonly SvgPaint Ink = SvgPaint.Color("#000");
+    private static readonly SvgPaint Paper = SvgPaint.Color("#fff");
     private static readonly SvgPaint White = SvgPaint.Color("#fff");
-    private static readonly SvgPaint Muted = SvgPaint.Color("#555");
-    private static readonly SvgPaint DimInk = SvgPaint.Color("#222");
-    private static readonly SvgPaint WallFill = SvgPaint.Color("#333");
-    private static readonly SvgPaint ShellStroke = SvgPaint.Color("#888");
-    private static readonly SvgPaint SpaceFill = SvgPaint.Color("#fafafa");
-    private static readonly SvgPaint WindowStroke = SvgPaint.Color("#222");
-    private static readonly SvgPaint GlassStroke = SvgPaint.Color("#444");
-    private static readonly SvgPaint LabelMuted = SvgPaint.Color("#555");
+    private static readonly SvgPaint Muted = SvgPaint.Color("#333");
+    private static readonly SvgPaint DimInk = SvgPaint.Color("#111");
+    private static readonly SvgPaint WallFill = SvgPaint.Color("#111");
+    private static readonly SvgPaint ShellStroke = SvgPaint.Color("#666");
+    private static readonly SvgPaint SpaceFill = SvgPaint.None;
+    private static readonly SvgPaint WindowStroke = SvgPaint.Color("#000");
+    private static readonly SvgPaint GlassStroke = SvgPaint.Color("#333");
+    private static readonly SvgPaint LabelMuted = SvgPaint.Color("#333");
     private const string Mono = "IBM Plex Mono,Consolas,monospace";
 
     public static SvgDocument Compose(CadBlueprint blueprint, CadBlueprintSheet sheet)
@@ -49,12 +49,21 @@ public static class CadBlueprintSheetSvg
                 ? sheet.Views
                 : [new CadBlueprintView { Id = "plan", Label = "Plan", Kind = "plan" }];
 
-            foreach (var view in views.Where(v => v.Kind is "plan" or "other" || string.IsNullOrEmpty(v.Kind)))
+            foreach (var view in views)
             {
+                var kind = string.IsNullOrEmpty(view.Kind) ? "plan" : view.Kind;
                 svg.Group(g =>
                 {
-                    g.Data("nbp-view", view.Id).Data("nbp-view-kind", view.Kind);
-                    AppendPlan(g, blueprint, sheet, view.LevelIndex, layout);
+                    g.Data("nbp-view", view.Id).Data("nbp-view-kind", kind);
+                    if (kind is "plan" or "other")
+                    {
+                        AppendPlan(g, blueprint, sheet, view.LevelIndex, layout);
+                        AppendStrokes(g, sheet, view, layout, planOverlays: true);
+                    }
+                    else if (kind is "section" or "elevation" or "profile" or "detail")
+                    {
+                        AppendStrokes(g, sheet, view, layout, planOverlays: false);
+                    }
                 });
             }
         });
@@ -92,13 +101,22 @@ public static class CadBlueprintSheetSvg
             g.Text(new SvgPoint(ix + 12, iy + 18), sheet.Title, t =>
                 t.Fill(Ink).FontFamily(Mono).FontSize(SvgLength.Number(11)).Style("font-weight:600"));
 
-            var orientNote = layout.SternLeft ? "ISO 128-15 stern left" : "plan north up";
+            var primaryKind = sheet.Views.FirstOrDefault()?.Kind ?? "plan";
+            var orientNote = layout.SternLeft
+                ? "ISO 128-15 stern left"
+                : primaryKind switch
+                {
+                    "section" => "section",
+                    "elevation" => "elevation",
+                    "profile" => "profile",
+                    _ => "plan north up",
+                };
             g.Text(
                 new SvgPoint(ix + 12, iy + 30),
                 $"{blueprint.Context} · {orientNote} · {sheet.Units} · SCALE 1:{F(layout.ScaleRatio)}",
                 t => t.Fill(Ink).FontFamily(Mono).FontSize(SvgLength.Number(5.5)));
 
-            if (!layout.SternLeft)
+            if (!layout.SternLeft && primaryKind is "plan" or "other" or "")
             {
                 g.Group(n =>
                 {
@@ -404,7 +422,7 @@ public static class CadBlueprintSheetSvg
             .MoveTo(pageLeaf)
             .ArcTo(radius, radius, 0, false, sweep, pageLatch);
         g.Path(swing, p =>
-            p.Fill(SvgPaint.None).Stroke(SvgPaint.Color("#333")).StrokeWidth(0.35));
+            p.Fill(SvgPaint.None).Stroke(Ink).StrokeWidth(0.35));
     }
 
     /// <summary>Pick SVG sweep so the minor arc from <paramref name="from"/> to <paramref name="to"/> is used.</summary>
@@ -470,7 +488,7 @@ public static class CadBlueprintSheetSvg
             .LineTo(P(aX - nx * punch, aZ - nz * punch, layout))
             .Close();
         g.Path(path, p =>
-            p.Fill(Paper).Stroke(SvgPaint.Color("#666")).StrokeWidth(0.25).StrokeDashArray([1, 0.6]));
+            p.Fill(Paper).Stroke(ShellStroke).StrokeWidth(0.25).StrokeDashArray([1, 0.6]));
     }
 
     private static void AppendOverallDims(SvgGroup g, CadBlueprintSheetLayout layout)
@@ -627,6 +645,147 @@ public static class CadBlueprintSheetSvg
         }
 
         return path.Close();
+    }
+
+    private static void AppendStrokes(
+        SvgGroup root,
+        CadBlueprintSheet sheet,
+        CadBlueprintView view,
+        CadBlueprintSheetLayout layout,
+        bool planOverlays)
+    {
+        if (view.Strokes.Count == 0 && view.Texts.Count == 0)
+            return;
+
+        if (planOverlays)
+        {
+            AppendStrokeBucket(
+                root, sheet, view,
+                "overlays.furniture", "overlays/furniture", "overlay",
+                s => LayerLooksLike(s.LayerHint, ["FURN", "FIXT", "CASE", "FURNITURE"]),
+                layout);
+            AppendStrokeBucket(
+                root, sheet, view,
+                "overlays.dims", "overlays/dims", "overlay",
+                s => LayerLooksLike(s.LayerHint, ["DIM", "ANNOT", "TEXT", "NOTE"]),
+                layout);
+            AppendStrokeBucket(
+                root, sheet, view,
+                "overlays.grid", "overlays/grid", "overlay",
+                s => LayerLooksLike(s.LayerHint, ["GRID", "AXIS"]),
+                layout);
+            AppendStrokeBucket(
+                root, sheet, view,
+                "overlays.drawing", "overlays/drawing", "overlay",
+                s => !LayerLooksLike(s.LayerHint, ["FURN", "FIXT", "CASE", "FURNITURE", "DIM", "ANNOT", "TEXT", "NOTE", "GRID", "AXIS"])
+                     && !LayerLooksLike(s.LayerHint, ["WALL", "A-WALL", "DOOR", "GLAZ", "WINDOW", "OPENING"]),
+                layout);
+            // Skip wall/opening stroke duplicates on plan — semantic poche already draws them.
+        }
+        else
+        {
+            root.Group(g =>
+            {
+                ResolveLayer(g, sheet, "drawing.strokes", "drawing/strokes", "drawing");
+                foreach (var stroke in view.Strokes)
+                    DrawStroke(g, stroke, layout);
+            });
+
+            if (view.Texts.Count > 0)
+            {
+                root.Group(g =>
+                {
+                    ResolveLayer(g, sheet, "drawing.texts", "drawing/texts", "drawing");
+                    foreach (var text in view.Texts)
+                        DrawViewText(g, text, layout);
+                });
+            }
+        }
+    }
+
+    private static void AppendStrokeBucket(
+        SvgGroup root,
+        CadBlueprintSheet sheet,
+        CadBlueprintView view,
+        string layerId,
+        string layerPath,
+        string kind,
+        Func<CadBlueprintStroke, bool> predicate,
+        CadBlueprintSheetLayout layout)
+    {
+        var strokes = view.Strokes.Where(predicate).ToList();
+        var texts = layerId.Contains("dims", StringComparison.Ordinal)
+            ? view.Texts
+            : [];
+        if (strokes.Count == 0 && texts.Count == 0)
+            return;
+
+        root.Group(g =>
+        {
+            ResolveLayer(g, sheet, layerId, layerPath, kind);
+            foreach (var stroke in strokes)
+                DrawStroke(g, stroke, layout);
+            foreach (var text in texts)
+                DrawViewText(g, text, layout);
+        });
+    }
+
+    private static bool LayerLooksLike(string? layerHint, IReadOnlyList<string> hints)
+    {
+        if (string.IsNullOrWhiteSpace(layerHint))
+            return false;
+        foreach (var hint in hints)
+        {
+            if (layerHint.Contains(hint, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static void DrawStroke(SvgGroup g, CadBlueprintStroke stroke, CadBlueprintSheetLayout layout)
+    {
+        if (stroke.Points.Count < 2)
+            return;
+
+        var path = new SvgPathData();
+        CadBlueprintSheetLayout.PlanXZ(stroke.Points[0], out var x0, out var z0);
+        path.MoveTo(new SvgPoint(layout.PageX(x0, z0), layout.PageY(x0, z0)));
+        for (var i = 1; i < stroke.Points.Count; i++)
+        {
+            CadBlueprintSheetLayout.PlanXZ(stroke.Points[i], out var x, out var z);
+            path.LineTo(new SvgPoint(layout.PageX(x, z), layout.PageY(x, z)));
+        }
+
+        if (stroke.Closed)
+            path.Close();
+
+        var (paint, width, dashed) = StrokeStyle(stroke.Style);
+        g.Path(path, p =>
+        {
+            p.Fill(SvgPaint.None).Stroke(paint).StrokeWidth(width);
+            if (dashed)
+                p.StrokeDashArray([1.2, 0.8]);
+        });
+    }
+
+    private static (SvgPaint Paint, double Width, bool Dashed) StrokeStyle(string style) =>
+        style.ToLowerInvariant() switch
+        {
+            "heavy" => (Ink, 0.55, false),
+            "dim" => (DimInk, 0.22, false),
+            "dashed" => (Muted, 0.28, true),
+            _ => (Ink, 0.35, false),
+        };
+
+    private static void DrawViewText(SvgGroup g, CadBlueprintViewText text, CadBlueprintSheetLayout layout)
+    {
+        if (string.IsNullOrWhiteSpace(text.Text))
+            return;
+        CadBlueprintSheetLayout.PlanXZ(text.Position, out var x, out var z);
+        var fontMm = System.Math.Clamp(text.Height * layout.Scale, 2.5, 8.0);
+        g.Text(new SvgPoint(layout.PageX(x, z), layout.PageY(x, z)), text.Text, t =>
+            t.Fill(Muted).FontFamily(Mono).FontSize(SvgLength.Number(fontMm)));
     }
 
     private static void RoomLabel(

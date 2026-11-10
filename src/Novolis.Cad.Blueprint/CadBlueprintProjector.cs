@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Novolis.Cad.Primitives;
 
 namespace Novolis.Cad.Blueprint;
@@ -61,6 +62,7 @@ public static class CadBlueprintProjector
         }
 
         var skipped = 0;
+        var strokeEntities = new List<CadEntity>();
         foreach (var e in doc.Entities)
         {
             switch (e.Kind.ToLowerInvariant())
@@ -89,6 +91,9 @@ public static class CadBlueprintProjector
                 case "box" when LooksLikeShell(e):
                     bp.Shells.Add(ToShellFromBox(e));
                     break;
+                case "polyline" or "text" when HasViewTag(e):
+                    strokeEntities.Add(e);
+                    break;
                 default:
                     skipped++;
                     break;
@@ -106,9 +111,182 @@ public static class CadBlueprintProjector
 
         CadBlueprintHullLoftShell.TryAddFromDocument(bp, doc, diagnostics);
 
-        bp.Sheets.Add(CreateDefaultSheet(bp));
+        var drawingViews = ReadDrawingViewCatalog(doc);
+        if (drawingViews.Count > 0)
+        {
+            foreach (var sheet in CreateSheetsFromDrawingViews(bp, drawingViews, strokeEntities))
+                bp.Sheets.Add(sheet);
+        }
+        else
+        {
+            bp.Sheets.Add(CreateDefaultSheet(bp));
+        }
+
         return (bp, diagnostics);
     }
+
+    private static bool HasViewTag(CadEntity e) =>
+        e.Properties is not null && e.Properties.ContainsKey("nbp.viewId");
+
+    private static List<DrawingViewMeta> ReadDrawingViewCatalog(CadDocument doc)
+    {
+        if (doc.Properties is null
+            || !doc.Properties.TryGetValue("nbp.drawingViews", out var el)
+            || el.ValueKind != JsonValueKind.Array)
+            return [];
+
+        var list = new List<DrawingViewMeta>();
+        foreach (var item in el.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object)
+                continue;
+            var id = item.TryGetProperty("id", out var idEl) ? idEl.GetString() : null;
+            var kind = item.TryGetProperty("kind", out var kindEl) ? kindEl.GetString() : null;
+            if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(kind))
+                continue;
+            var label = item.TryGetProperty("label", out var labelEl) ? labelEl.GetString() : kind;
+            var scaleHint = item.TryGetProperty("scaleHint", out var scaleEl) ? scaleEl.GetString() : null;
+            list.Add(new DrawingViewMeta(id!, kind!, label ?? kind!, scaleHint));
+        }
+
+        return list;
+    }
+
+    private static IEnumerable<CadBlueprintSheet> CreateSheetsFromDrawingViews(
+        CadBlueprint bp,
+        IReadOnlyList<DrawingViewMeta> views,
+        IReadOnlyList<CadEntity> strokeEntities)
+    {
+        var ordered = views
+            .OrderBy(v => v.Kind switch
+            {
+                "plan" => 0,
+                "section" => 1,
+                "elevation" => 2,
+                _ => 9,
+            })
+            .ThenBy(v => v.Id, StringComparer.Ordinal)
+            .ToList();
+
+        var index = 0;
+        foreach (var meta in ordered)
+        {
+            index++;
+            var isPlan = meta.Kind.Equals("plan", StringComparison.OrdinalIgnoreCase);
+            var sheet = new CadBlueprintSheet
+            {
+                Id = $"GA-{index:000}",
+                Title = $"{bp.Name} — {meta.Label}",
+                Rev = "A",
+                Orientation = bp.Context is CadBlueprintContexts.Spaceship
+                    or CadBlueprintContexts.SpaceStation
+                    or CadBlueprintContexts.SeagoingShip
+                    ? "iso128-15-stern-left"
+                    : "plan-north-up",
+                Folders = isPlan
+                    ?
+                    [
+                        new() { Path = "chrome", Label = "Sheet chrome" },
+                        new() { Path = "exterior", Label = "Exteriors" },
+                        new() { Path = "structure", Label = "Walls" },
+                        new() { Path = "interior", Label = "Interiors" },
+                        new() { Path = "openings", Label = "Doors / hatches / holes" },
+                        new() { Path = "overlays", Label = "Overlays" },
+                        new() { Path = "dims", Label = "Measurements" },
+                    ]
+                    :
+                    [
+                        new() { Path = "chrome", Label = "Sheet chrome" },
+                        new() { Path = "drawing", Label = "Drawing" },
+                    ],
+                Layers = isPlan
+                    ?
+                    [
+                        Layer("chrome.frame", "chrome/frame", "Frame", "chrome", locked: true),
+                        Layer("exterior.shell", "exterior/shell", "Shell / facade", "outline"),
+                        Layer("structure.walls", "structure/walls", "Walls", "structure"),
+                        Layer("interior.spaces", "interior/spaces", "Spaces", "space"),
+                        Layer("openings.all", "openings/all", "Openings", "opening"),
+                        Layer("overlays.furniture", "overlays/furniture", "Furniture", "overlay", plot: true),
+                        Layer("overlays.dims", "overlays/dims", "Source dims", "overlay", plot: true),
+                        Layer("overlays.grid", "overlays/grid", "Grid", "overlay", plot: true),
+                        Layer("overlays.drawing", "overlays/drawing", "Drawing strokes", "overlay", plot: true),
+                        Layer("dims.primary", "dims/primary", "Primary dims", "dimension"),
+                    ]
+                    :
+                    [
+                        Layer("chrome.frame", "chrome/frame", "Frame", "chrome", locked: true),
+                        Layer("drawing.strokes", "drawing/strokes", "Linework", "drawing"),
+                        Layer("drawing.texts", "drawing/texts", "Labels", "drawing"),
+                    ],
+            };
+
+            var view = new CadBlueprintView
+            {
+                Id = meta.Id,
+                Label = meta.Label,
+                Kind = meta.Kind,
+                Scale = meta.ScaleHint,
+                LevelIndex = isPlan ? bp.Levels.FirstOrDefault()?.Index ?? 0 : null,
+            };
+            AttachStrokes(view, strokeEntities, meta.Id);
+            sheet.Views.Add(view);
+
+            sheet.Presets.Add(new CadBlueprintPreset
+            {
+                Id = "print",
+                Label = "Print",
+                ForPlot = true,
+                VisibleLayerIds = sheet.Layers.Where(l => l.Plot).Select(l => l.Id).ToList(),
+            });
+            sheet.DefaultPresetId = "print";
+            yield return sheet;
+        }
+    }
+
+    private static void AttachStrokes(CadBlueprintView view, IReadOnlyList<CadEntity> strokeEntities, string viewId)
+    {
+        foreach (var e in strokeEntities)
+        {
+            if (e.Properties is null
+                || !e.Properties.TryGetValue("nbp.viewId", out var idEl)
+                || !string.Equals(idEl.GetString(), viewId, StringComparison.Ordinal))
+                continue;
+
+            var style = e.Properties.TryGetValue("nbp.stroke", out var strokeEl)
+                ? strokeEl.GetString() ?? "solid"
+                : "solid";
+            var layerHint = e.Properties.TryGetValue("nbp.layer", out var layerEl)
+                ? layerEl.GetString()
+                : null;
+
+            if (e.Kind.Equals("text", StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.IsNullOrWhiteSpace(e.Name) || e.Center is null)
+                    continue;
+                view.Texts.Add(new CadBlueprintViewText
+                {
+                    Text = e.Name!,
+                    Position = e.Center,
+                    Height = e.Height > 0 ? e.Height : 0.2f,
+                });
+                continue;
+            }
+
+            if (e.Points is not { Count: >= 2 })
+                continue;
+
+            view.Strokes.Add(new CadBlueprintStroke
+            {
+                Style = style,
+                LayerHint = layerHint,
+                Closed = e.Closed,
+                Points = e.Points.Select(p => (float[])p.Clone()).ToList(),
+            });
+        }
+    }
+
+    private readonly record struct DrawingViewMeta(string Id, string Kind, string Label, string? ScaleHint);
 
     private static bool LooksLikeShell(CadEntity e) =>
         e.Name is not null
@@ -303,7 +481,13 @@ public static class CadBlueprintProjector
         return sheet;
     }
 
-    private static CadBlueprintLayer Layer(string id, string path, string label, string kind, bool locked = false) =>
+    private static CadBlueprintLayer Layer(
+        string id,
+        string path,
+        string label,
+        string kind,
+        bool locked = false,
+        bool? plot = null) =>
         new()
         {
             Id = id,
@@ -312,6 +496,6 @@ public static class CadBlueprintProjector
             Kind = kind,
             Locked = locked,
             DefaultVisible = true,
-            Plot = kind is not "overlay",
+            Plot = plot ?? kind is not "overlay",
         };
 }
