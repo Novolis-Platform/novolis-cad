@@ -56,16 +56,21 @@ public static class DxfCadImporter
 
         var walls = 0;
         var spaces = 0;
-        var openings = 0;
         var skipped = 0;
+        var openingCandidates = new List<OpeningCandidate>();
 
         foreach (var entity in dxf.Entities)
         {
             var layerName = entity.Layer?.Name ?? "";
+            if (Matches(layerName, options.ExcludeLayerHints))
+            {
+                skipped++;
+                continue;
+            }
+
             switch (entity)
             {
-                case Line line when Matches(layerName, options.WallLayerHints)
-                                    && !Matches(layerName, options.OpeningLayerHints):
+                case Line line when IsWallLayer(layerName, options):
                 {
                     if (TryAddWall(doc, wallLayerId, Xy(line.StartPoint), Xy(line.EndPoint), scale, options))
                         walls++;
@@ -75,8 +80,8 @@ public static class DxfCadImporter
                 }
                 case Line line when Matches(layerName, options.OpeningLayerHints):
                 {
-                    if (TryAddOpeningFromSegment(doc, openingLayerId, Xy(line.StartPoint), Xy(line.EndPoint), scale, options))
-                        openings++;
+                    if (TryCollectOpening(openingCandidates, Xy(line.StartPoint), Xy(line.EndPoint), scale, options, layerName))
+                    { }
                     else
                         skipped++;
                     break;
@@ -92,15 +97,14 @@ public static class DxfCadImporter
 
                     if (poly.IsClosed && (Matches(layerName, options.SpaceLayerHints)
                                           || (options.ClosedWallPolylinesAsSpaces
-                                              && Matches(layerName, options.WallLayerHints))))
+                                              && IsWallLayer(layerName, options))))
                     {
                         if (TryAddSpace(doc, spaceLayerId, pts, scale, options, layerName))
                             spaces++;
                         else
                             skipped++;
                     }
-                    else if (Matches(layerName, options.WallLayerHints)
-                             && !Matches(layerName, options.OpeningLayerHints))
+                    else if (IsWallLayer(layerName, options))
                     {
                         var added = 0;
                         for (var i = 0; i < pts.Count - 1; i++)
@@ -117,9 +121,7 @@ public static class DxfCadImporter
                     }
                     else if (Matches(layerName, options.OpeningLayerHints) && pts.Count >= 2)
                     {
-                        if (TryAddOpeningFromSegment(doc, openingLayerId, pts[0], pts[^1], scale, options))
-                            openings++;
-                        else
+                        if (!TryCollectOpening(openingCandidates, pts[0], pts[^1], scale, options, layerName))
                             skipped++;
                     }
                     else
@@ -135,6 +137,7 @@ public static class DxfCadImporter
             }
         }
 
+        var openings = CommitOpenings(doc, openingLayerId, openingCandidates, options);
         ApplyTextLabels(dxf, doc, scale);
         notes.Add($"Lifted walls={walls} spaces={spaces} openings={openings} skipped={skipped}.");
 
@@ -152,6 +155,11 @@ public static class DxfCadImporter
     }
 
     private static (double X, double Y) Xy(XYZ p) => (p.X, p.Y);
+
+    private static bool IsWallLayer(string layerName, DxfImportOptions options) =>
+        Matches(layerName, options.WallLayerHints)
+        && !Matches(layerName, options.OpeningLayerHints)
+        && !Matches(layerName, options.SpaceLayerHints);
 
     private static (double Scale, string Reason) ResolveUnitScale(
         ACadSharp.CadDocument dxf,
@@ -190,7 +198,6 @@ public static class DxfCadImporter
             var meters = longest * scale;
             if (meters is < 5 or > 200)
                 continue;
-            // Distance from a 25 m target; slight penalty outside 10–60.
             var score = System.Math.Abs(meters - 25.0);
             if (meters is < 10 or > 60)
                 score += 20;
@@ -272,6 +279,15 @@ public static class DxfCadImporter
         if (len < options.MinWallLengthMeters)
             return false;
 
+        // Drop near-duplicate wall segments (double-line wall traces).
+        foreach (var existing in doc.Entities.Where(e => e.Kind == "wall" && e.A is { Length: >= 3 } && e.B is { Length: >= 3 }))
+        {
+            var ea = existing.A!;
+            var eb = existing.B!;
+            if (SameSegment(ax, az, bx, bz, ea[0], ea[2], eb[0], eb[2], 0.12f))
+                return false;
+        }
+
         doc.Entities.Add(new CadEntity
         {
             Kind = "wall",
@@ -284,6 +300,23 @@ public static class DxfCadImporter
             LayerId = layerId,
         });
         return true;
+    }
+
+    private static bool SameSegment(
+        float ax, float az, float bx, float bz,
+        float cx, float cz, float dx, float dz,
+        float tol)
+    {
+        static float Dist2(float x0, float z0, float x1, float z1)
+        {
+            var x = x0 - x1;
+            var z = z0 - z1;
+            return x * x + z * z;
+        }
+
+        var tol2 = tol * tol;
+        return (Dist2(ax, az, cx, cz) <= tol2 && Dist2(bx, bz, dx, dz) <= tol2)
+               || (Dist2(ax, az, dx, dz) <= tol2 && Dist2(bx, bz, cx, cz) <= tol2);
     }
 
     private static bool TryAddSpace(
@@ -304,7 +337,8 @@ public static class DxfCadImporter
             (float)(p.Y * scale),
         }).ToList();
 
-        if (PlanArea(footprint) < 0.05)
+        // Ignore tiny annotation loops; keep porch / closet scale (≥ 1 m²).
+        if (PlanArea(footprint) < 1.0)
             return false;
 
         doc.Entities.Add(new CadEntity
@@ -319,47 +353,109 @@ public static class DxfCadImporter
         return true;
     }
 
-    private static bool TryAddOpeningFromSegment(
-        CadDocument doc,
-        Guid layerId,
+    private readonly record struct OpeningCandidate(
+        float MidX,
+        float MidZ,
+        float Ax,
+        float Az,
+        float Bx,
+        float Bz,
+        float Len,
+        string LayerName);
+
+    private static bool TryCollectOpening(
+        List<OpeningCandidate> candidates,
         (double X, double Y) a,
         (double X, double Y) b,
         double scale,
-        DxfImportOptions options)
+        DxfImportOptions options,
+        string layerName)
     {
-        var ax = a.X * scale;
-        var az = a.Y * scale;
-        var bx = b.X * scale;
-        var bz = b.Y * scale;
+        var ax = (float)(a.X * scale);
+        var az = (float)(a.Y * scale);
+        var bx = (float)(b.X * scale);
+        var bz = (float)(b.Y * scale);
         var dx = bx - ax;
         var dz = bz - az;
-        var len = System.Math.Sqrt(dx * dx + dz * dz);
-        if (len < 0.2 || len > 6.0)
+        var len = (float)System.Math.Sqrt(dx * dx + dz * dz);
+        if (len < options.MinOpeningLengthMeters || len > options.MaxOpeningLengthMeters)
             return false;
 
-        var hx = -dz / len * 0.08;
-        var hz = dx / len * 0.08;
-        var footprint = new List<float[]>
-        {
-            new[] { (float)(ax + hx), 0f, (float)(az + hz) },
-            new[] { (float)(bx + hx), 0f, (float)(bz + hz) },
-            new[] { (float)(bx - hx), 0f, (float)(bz - hz) },
-            new[] { (float)(ax - hx), 0f, (float)(az - hz) },
-        };
-
-        var kind = len >= 1.5 ? "window" : "door";
-        doc.Entities.Add(new CadEntity
-        {
-            Kind = "opening",
-            Name = $"{kind}-{doc.Entities.Count(e => e.Kind == "opening") + 1}",
-            OpeningType = kind,
-            Deck = 0,
-            Height = kind is "window" ? 1.2f : 2.1f,
-            Thickness = (float)len,
-            Footprint = footprint,
-            LayerId = layerId,
-        });
+        candidates.Add(new OpeningCandidate(
+            (ax + bx) * 0.5f,
+            (az + bz) * 0.5f,
+            ax, az, bx, bz, len, layerName));
         return true;
+    }
+
+    private static int CommitOpenings(
+        CadDocument doc,
+        Guid layerId,
+        List<OpeningCandidate> candidates,
+        DxfImportOptions options)
+    {
+        if (candidates.Count == 0)
+            return 0;
+
+        // Prefer the longest segment in each midpoint cluster (jamb soup → one clear).
+        var ordered = candidates.OrderByDescending(c => c.Len).ToList();
+        var kept = new List<OpeningCandidate>();
+        var dedupe2 = options.OpeningDedupeMeters * options.OpeningDedupeMeters;
+        foreach (var c in ordered)
+        {
+            if (kept.Any(k =>
+            {
+                var dx = k.MidX - c.MidX;
+                var dz = k.MidZ - c.MidZ;
+                return dx * dx + dz * dz <= dedupe2;
+            }))
+                continue;
+            kept.Add(c);
+        }
+
+        var count = 0;
+        foreach (var c in kept)
+        {
+            var kind = InferOpeningKind(c.LayerName, c.Len);
+            var hx = -(c.Bz - c.Az) / c.Len * 0.08f;
+            var hz = (c.Bx - c.Ax) / c.Len * 0.08f;
+            var footprint = new List<float[]>
+            {
+                new[] { c.Ax + hx, 0f, c.Az + hz },
+                new[] { c.Bx + hx, 0f, c.Bz + hz },
+                new[] { c.Bx - hx, 0f, c.Bz - hz },
+                new[] { c.Ax - hx, 0f, c.Az - hz },
+            };
+
+            doc.Entities.Add(new CadEntity
+            {
+                Kind = "opening",
+                Name = $"{kind}-{count + 1}",
+                OpeningType = kind,
+                Deck = 0,
+                Height = kind is "window" ? 1.2f : 2.1f,
+                Thickness = c.Len,
+                Footprint = footprint,
+                LayerId = layerId,
+            });
+            count++;
+        }
+
+        return count;
+    }
+
+    private static string InferOpeningKind(string layerName, float len)
+    {
+        if (layerName.Contains("WINDOW", StringComparison.OrdinalIgnoreCase)
+            || layerName.Contains("GLAZ", StringComparison.OrdinalIgnoreCase))
+            return "window";
+        if (layerName.Contains("DOOR", StringComparison.OrdinalIgnoreCase)
+            || layerName.Contains("GARAGE", StringComparison.OrdinalIgnoreCase))
+            return "door";
+        // Generic OPENING: short → door leaf, mid → window, long → garage/door.
+        if (len < 1.05f) return "door";
+        if (len < 2.2f) return "window";
+        return "door";
     }
 
     private static void ApplyTextLabels(ACadSharp.CadDocument dxf, CadDocument doc, double scale)
@@ -377,7 +473,7 @@ public static class DxfCadImporter
                 continue;
 
             var clean = CleanLabel(text);
-            if (clean.Length is < 2 or > 32)
+            if (!IsRoomLabel(clean))
                 continue;
 
             XYZ? origin = entity switch
@@ -414,9 +510,73 @@ public static class DxfCadImporter
                 }
             }
 
-            if (bestText is not null && bestDist < 25)
+            // Only rename when the label sits inside / near the space centroid.
+            if (bestText is not null && bestDist < 16)
                 space.Name = bestText;
         }
+    }
+
+    /// <summary>Keep human room names; drop dims, codes, notes, roof tags.</summary>
+    public static bool IsRoomLabel(string text)
+    {
+        if (text.Length is < 2 or > 28)
+            return false;
+        if (text.Contains('\'') || text.Contains('"') || text.Contains('′') || text.Contains('″'))
+            return false;
+        if (LooksLikeDimension(text))
+            return false;
+
+        var letters = text.Count(char.IsLetter);
+        var digitsOnly = text.Count(char.IsDigit);
+        if (letters == 0)
+            return false;
+        if (digitsOnly >= 3 && letters <= 2)
+            return false;
+
+        // Prefer short room names (Kitchen, Master Bath); drop multi-clause notes.
+        if (text.Count(c => c == ' ') >= 3 || text.Contains(','))
+            return false;
+
+        ReadOnlySpan<string> banned =
+        [
+            "ROOF", "NOTE", "SCALE", "DETAIL", "SECTION", "ELEV", "PLAN",
+            "NORTH", "REV", "SHEET", "DWG", "DRAWING", "TOP OF", "B.O.",
+            "BOTTOM", "HEADER", "JOIST", "BEAM", "DIM", "ALSO", "BEARING",
+            "SEE ", "TYP.", "TYP ", "CONT.",
+        ];
+        foreach (var b in banned)
+        {
+            if (text.Contains(b, StringComparison.OrdinalIgnoreCase))
+                return false;
+        }
+
+        return true;
+    }
+
+    private static bool LooksLikeDimension(string text)
+    {
+        for (var i = 0; i < text.Length; i++)
+        {
+            var c = text[i];
+            if (c is not ('x' or 'X' or '×'))
+                continue;
+            var leftDigit = false;
+            for (var j = 0; j < i; j++)
+            {
+                if (char.IsDigit(text[j])) { leftDigit = true; break; }
+            }
+
+            var rightDigit = false;
+            for (var j = i + 1; j < text.Length; j++)
+            {
+                if (char.IsDigit(text[j])) { rightDigit = true; break; }
+            }
+
+            if (leftDigit && rightDigit)
+                return true;
+        }
+
+        return false;
     }
 
     private static string CleanLabel(string raw)
@@ -438,13 +598,38 @@ public static class DxfCadImporter
             s = s[..i] + s[(j + 1)..];
         }
 
+        // AutoCAD special codes: %%u underline, %%d degree, %%c diameter, %%p ±, %%nnn ASCII.
+        while (true)
+        {
+            var i = s.IndexOf("%%", StringComparison.Ordinal);
+            if (i < 0) break;
+            if (i + 2 >= s.Length)
+            {
+                s = s[..i];
+                break;
+            }
+
+            var code = s[i + 2];
+            if (code is >= '0' and <= '9')
+            {
+                var end = i + 3;
+                while (end < s.Length && end < i + 5 && char.IsDigit(s[end]))
+                    end++;
+                s = s[..i] + s[end..];
+            }
+            else
+            {
+                s = s[..i] + s[(i + 3)..];
+            }
+        }
+
         return string.Join(' ', s.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
     }
 
     private static string InferSpaceName(string layerName, int index) =>
         layerName.Contains("FOOTPRINT", StringComparison.OrdinalIgnoreCase)
-            ? $"Footprint-{index}"
-            : $"Space-{index}";
+            ? $"Area {index}"
+            : $"Room {index}";
 
     private static double PlanArea(IReadOnlyList<float[]> ring)
     {

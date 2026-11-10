@@ -17,9 +17,9 @@ public static class CadBlueprintSheetSvg
     private static readonly SvgPaint WallFill = SvgPaint.Color("#333");
     private static readonly SvgPaint ShellStroke = SvgPaint.Color("#888");
     private static readonly SvgPaint SpaceFill = SvgPaint.Color("#fafafa");
-    private static readonly SvgPaint WindowStroke = SvgPaint.Color("#1a4a7a");
-    private static readonly SvgPaint GlassStroke = SvgPaint.Color("#5a9fd4");
-    private static readonly SvgPaint LabelMuted = SvgPaint.Color("#666");
+    private static readonly SvgPaint WindowStroke = SvgPaint.Color("#222");
+    private static readonly SvgPaint GlassStroke = SvgPaint.Color("#444");
+    private static readonly SvgPaint LabelMuted = SvgPaint.Color("#555");
     private const string Mono = "IBM Plex Mono,Consolas,monospace";
 
     public static SvgDocument Compose(CadBlueprint blueprint, CadBlueprintSheet sheet)
@@ -89,33 +89,33 @@ public static class CadBlueprintSheetSvg
             g.Rect(ix, iy, iw, ih, r => r.Fill(SvgPaint.None).Stroke(Ink).StrokeWidth(0.9));
             g.Rect(ix + 3, iy + 3, iw - 6, ih - 6, r => r.Fill(SvgPaint.None).Stroke(Ink).StrokeWidth(0.35));
 
-            g.Text(new SvgPoint(ix + 10, iy + 14), sheet.Title, t =>
-                t.Fill(Ink).FontFamily(Mono).FontSize(SvgLength.Number(5)).Style("font-weight:600"));
+            g.Text(new SvgPoint(ix + 12, iy + 18), sheet.Title, t =>
+                t.Fill(Ink).FontFamily(Mono).FontSize(SvgLength.Number(11)).Style("font-weight:600"));
 
             var orientNote = layout.SternLeft ? "ISO 128-15 stern left" : "plan north up";
             g.Text(
-                new SvgPoint(ix + 10, iy + 24),
+                new SvgPoint(ix + 12, iy + 30),
                 $"{blueprint.Context} · {orientNote} · {sheet.Units} · SCALE 1:{F(layout.ScaleRatio)}",
-                t => t.Fill(Ink).FontFamily(Mono).FontSize(SvgLength.Number(2.8)));
+                t => t.Fill(Ink).FontFamily(Mono).FontSize(SvgLength.Number(5.5)));
 
             if (!layout.SternLeft)
             {
                 g.Group(n =>
                 {
-                    n.Transform(new SvgTransformList().Translate(ix + iw - 28, iy + 28));
+                    n.Transform(new SvgTransformList().Translate(ix + iw - 36, iy + 36));
                     n.Polygon(
-                        [new SvgPoint(0, -10), new SvgPoint(3.5, 6), new SvgPoint(-3.5, 6)],
+                        [new SvgPoint(0, -14), new SvgPoint(5, 8), new SvgPoint(-5, 8)],
                         p => p.Fill(Ink).Stroke(SvgPaint.None));
-                    n.Text(new SvgPoint(0, 14), "N", t =>
-                        t.Fill(Ink).FontFamily(Mono).FontSize(SvgLength.Number(2.8)).TextAnchor(SvgTextAnchor.Middle));
+                    n.Text(new SvgPoint(0, 18), "N", t =>
+                        t.Fill(Ink).FontFamily(Mono).FontSize(SvgLength.Number(6)).TextAnchor(SvgTextAnchor.Middle));
                 });
             }
 
             var note = isShip
                 ? "CLASS-STYLE GA COMPANION (novolis.cad.blueprint) — NOT FOR PLAN APPROVAL. ISO 128-15 / 5457 / 7200."
                 : "ARCHITECTURAL GA COMPANION (novolis.cad.blueprint) — NOT FOR BUILDING PERMIT. ISO 5457 / 7200 sheet chrome.";
-            g.Text(new SvgPoint(ix + 10, h - size.BorderMm - 8), note, t =>
-                t.Fill(Muted).FontFamily(Mono).FontSize(SvgLength.Number(2.4)));
+            g.Text(new SvgPoint(ix + 12, h - size.BorderMm - 10), note, t =>
+                t.Fill(Muted).FontFamily(Mono).FontSize(SvgLength.Number(4)));
 
             AppendIso7200(g, sheet, blueprint, layout);
         });
@@ -127,66 +127,66 @@ public static class CadBlueprintSheetSvg
         CadBlueprint blueprint,
         CadBlueprintSheetLayout layout)
     {
-        const double tw = 180;
-        const double th = 56;
+        const double tw = 220;
+        const double th = 78;
         var size = layout.Size;
-        var x = size.WidthMm - size.BorderMm - tw - 3;
-        var y = size.HeightMm - size.BorderMm - th - 3;
+        var x = size.WidthMm - size.BorderMm - tw - 4;
+        var y = size.HeightMm - size.BorderMm - th - 4;
 
         g.Group(tb =>
         {
             tb.Class("titleblock").Data("nbp-iso", "7200");
-            tb.Rect(x, y, tw, th, r => r.Fill(White).Stroke(Ink).StrokeWidth(0.7));
+            tb.Rect(x, y, tw, th, r => r.Fill(White).Stroke(Ink).StrokeWidth(0.9));
 
-            var c1 = x + 52;
-            var c2 = x + 118;
-            tb.Line(c1, y, c1, y + th, l => l.Stroke(Ink).StrokeWidth(0.35));
-            tb.Line(c2, y, c2, y + th, l => l.Stroke(Ink).StrokeWidth(0.35));
-            var r1 = y + 12;
-            var r2 = y + 28;
-            var r3 = y + 42;
-            tb.Line(x, r1, x + tw, r1, l => l.Stroke(Ink).StrokeWidth(0.35));
-            tb.Line(x, r2, x + tw, r2, l => l.Stroke(Ink).StrokeWidth(0.35));
-            tb.Line(x, r3, x + tw, r3, l => l.Stroke(Ink).StrokeWidth(0.35));
+            var c1 = x + 64;
+            var c2 = x + 148;
+            tb.Line(c1, y, c1, y + th, l => l.Stroke(Ink).StrokeWidth(0.45));
+            tb.Line(c2, y, c2, y + th, l => l.Stroke(Ink).StrokeWidth(0.45));
+            var r1 = y + 18;
+            var r2 = y + 38;
+            var r3 = y + 58;
+            tb.Line(x, r1, x + tw, r1, l => l.Stroke(Ink).StrokeWidth(0.45));
+            tb.Line(x, r2, x + tw, r2, l => l.Stroke(Ink).StrokeWidth(0.45));
+            tb.Line(x, r3, x + tw, r3, l => l.Stroke(Ink).StrokeWidth(0.45));
 
             void Lbl(double lx, double ly, string text) =>
                 tb.Text(new SvgPoint(lx, ly), text, t =>
-                    t.Fill(LabelMuted).FontFamily(Mono).FontSize(SvgLength.Number(2.1)));
-            void Val(double lx, double ly, string text, double sizePt = 2.8) =>
+                    t.Fill(LabelMuted).FontFamily(Mono).FontSize(SvgLength.Number(3.6)));
+            void Val(double lx, double ly, string text, double sizePt = 5.5) =>
                 tb.Text(new SvgPoint(lx, ly), text, t =>
                 {
                     t.Fill(Ink).FontFamily(Mono).FontSize(SvgLength.Number(sizePt));
-                    if (sizePt >= 3.5)
+                    if (sizePt >= 6.5)
                         t.Style("font-weight:600");
                 });
 
-            Lbl(x + 2, y + 5, "OWNER / LEGAL");
-            Val(x + 2, y + 10, "Novolis");
-            Lbl(c1 + 2, y + 5, "DRAWING TITLE");
-            Val(c1 + 2, y + 10, Truncate(sheet.Title, 28));
-            Lbl(c2 + 2, y + 5, "SHEET");
-            Val(c2 + 2, y + 10, $"{size.Size} {(size.Landscape ? "LANDSCAPE" : "PORTRAIT")}");
+            Lbl(x + 3, y + 7, "OWNER / LEGAL");
+            Val(x + 3, y + 14, "Novolis");
+            Lbl(c1 + 3, y + 7, "DRAWING TITLE");
+            Val(c1 + 3, y + 14, Truncate(sheet.Title, 22), 5);
+            Lbl(c2 + 3, y + 7, "SHEET");
+            Val(c2 + 3, y + 14, $"{size.Size} {(size.Landscape ? "LANDSCAPE" : "PORTRAIT")}", 5);
 
-            Lbl(x + 2, r1 + 5, "PROJECT");
-            Val(x + 2, r1 + 10, Truncate(blueprint.Name, 18));
-            Lbl(c1 + 2, r1 + 5, "DRAWING NO.");
-            Val(c1 + 2, r1 + 10, sheet.Id, 3.6);
-            Lbl(c2 + 2, r1 + 5, "REV");
-            Val(c2 + 2, r1 + 10, sheet.Rev ?? "A", 3.6);
+            Lbl(x + 3, r1 + 7, "PROJECT");
+            Val(x + 3, r1 + 14, Truncate(blueprint.Name, 14), 5);
+            Lbl(c1 + 3, r1 + 7, "DRAWING NO.");
+            Val(c1 + 3, r1 + 14, sheet.Id, 7.5);
+            Lbl(c2 + 3, r1 + 7, "REV");
+            Val(c2 + 3, r1 + 14, sheet.Rev ?? "A", 7);
 
-            Lbl(x + 2, r2 + 5, "CONTEXT");
-            Val(x + 2, r2 + 10, blueprint.Context);
-            Lbl(c1 + 2, r2 + 5, "SCALE");
-            Val(c1 + 2, r2 + 10, $"1:{F(layout.ScaleRatio)}");
-            Lbl(c2 + 2, r2 + 5, "UNITS");
-            Val(c2 + 2, r2 + 10, sheet.Units);
+            Lbl(x + 3, r2 + 7, "CONTEXT");
+            Val(x + 3, r2 + 14, blueprint.Context);
+            Lbl(c1 + 3, r2 + 7, "SCALE");
+            Val(c1 + 3, r2 + 14, $"1:{F(layout.ScaleRatio)}");
+            Lbl(c2 + 3, r2 + 7, "UNITS");
+            Val(c2 + 3, r2 + 14, sheet.Units);
 
-            Lbl(x + 2, r3 + 5, "CREATED");
-            Val(x + 2, r3 + 10, Truncate(blueprint.CreatedAt ?? "", 16));
-            Lbl(c1 + 2, r3 + 5, "STANDARD");
-            Val(c1 + 2, r3 + 10, "ISO 5457 / 7200");
-            Lbl(c2 + 2, r3 + 5, "STATUS");
-            Val(c2 + 2, r3 + 10, "PRELIMINARY");
+            Lbl(x + 3, r3 + 7, "CREATED");
+            Val(x + 3, r3 + 14, Truncate(blueprint.CreatedAt ?? "", 16));
+            Lbl(c1 + 3, r3 + 7, "STANDARD");
+            Val(c1 + 3, r3 + 14, "ISO 5457 / 7200");
+            Lbl(c2 + 3, r3 + 7, "STATUS");
+            Val(c2 + 3, r3 + 14, "PRELIMINARY");
         });
     }
 
@@ -221,7 +221,8 @@ public static class CadBlueprintSheetSvg
                 if (levelIndex is { } li && space.LevelIndex != li) continue;
                 if (space.Footprint is not { Count: >= 3 }) continue;
                 g.Path(RingPath(space.Footprint, layout), p => p.Fill(SpaceFill).Stroke(SvgPaint.None));
-                RoomLabel(g, space.Footprint, layout, space.Name);
+                if (ShouldPlotRoomLabel(space.Name))
+                    RoomLabel(g, space.Footprint, layout, space.Name);
             }
         });
 
@@ -387,7 +388,7 @@ public static class CadBlueprintSheetSvg
         float hostThick,
         CadBlueprintSheetLayout layout)
     {
-        var punch = hostThick * 0.55f + 0.02f;
+        var punch = System.Math.Max(hostThick * 0.7f + 0.05f, 0.14f);
         var path = new SvgPathData()
             .MoveTo(P(aX + nx * punch, aZ + nz * punch, layout))
             .LineTo(P(bX + nx * punch, bZ + nz * punch, layout))
@@ -424,16 +425,16 @@ public static class CadBlueprintSheetSvg
         DimLine(minX, dimY, maxX, dimY);
         Tick(minX, dimY);
         Tick(maxX, dimY);
-        g.Text(new SvgPoint((minX + maxX) * 0.5, dimY + 7), $"{Nice(longSpan)} m", t =>
-            t.Fill(Ink).FontFamily(Mono).FontSize(SvgLength.Number(2.8)).TextAnchor(SvgTextAnchor.Middle));
+        g.Text(new SvgPoint((minX + maxX) * 0.5, dimY + 8), $"{Nice(longSpan)} m", t =>
+            t.Fill(Ink).FontFamily(Mono).FontSize(SvgLength.Number(5)).TextAnchor(SvgTextAnchor.Middle));
 
         DimLine(maxX + 2, minY, dimX, minY);
         DimLine(maxX + 2, maxY, dimX, maxY);
         DimLine(dimX, minY, dimX, maxY);
         Tick(dimX, minY);
         Tick(dimX, maxY);
-        g.Text(new SvgPoint(dimX + 5, (minY + maxY) * 0.5), $"{Nice(athwartSpan)} m", t =>
-            t.Fill(Ink).FontFamily(Mono).FontSize(SvgLength.Number(2.8)));
+        g.Text(new SvgPoint(dimX + 6, (minY + maxY) * 0.5), $"{Nice(athwartSpan)} m", t =>
+            t.Fill(Ink).FontFamily(Mono).FontSize(SvgLength.Number(5)));
     }
 
     private static bool TryOpeningAxis(
@@ -514,7 +515,25 @@ public static class CadBlueprintSheetSvg
         }
 
         g.Text(new SvgPoint(sx / ring.Count, sy / ring.Count), name, t =>
-            t.Fill(Ink).FontFamily(Mono).FontSize(SvgLength.Number(3.4)).TextAnchor(SvgTextAnchor.Middle));
+            t.Fill(Ink).FontFamily(Mono).FontSize(SvgLength.Number(7.5)).TextAnchor(SvgTextAnchor.Middle)
+                .Style("font-weight:600"));
+    }
+
+    private static bool ShouldPlotRoomLabel(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return false;
+        // Generic Area/Room placeholders stay quiet on dense DXF lifts.
+        if (name.StartsWith("Area ", StringComparison.Ordinal)
+            || name.StartsWith("Room ", StringComparison.Ordinal)
+            || name.StartsWith("Footprint", StringComparison.OrdinalIgnoreCase)
+            || name.StartsWith("Space-", StringComparison.OrdinalIgnoreCase))
+            return false;
+        if (name.Contains('\'') || name.Contains('"'))
+            return false;
+        if (name.Count(char.IsDigit) >= 3 && name.Count(char.IsLetter) <= 2)
+            return false;
+        return true;
     }
 
     private static void ResolveLayer(

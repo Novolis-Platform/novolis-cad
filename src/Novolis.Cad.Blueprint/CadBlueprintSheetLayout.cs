@@ -40,14 +40,16 @@ public sealed class CadBlueprintSheetLayout
         var sternLeft = sheet.Orientation.Contains("stern-left", StringComparison.OrdinalIgnoreCase);
         var (minX, maxX, minZ, maxZ) = CollectBounds(blueprint);
 
-        const double pad = 28.0;
-        const double titleBlockH = 56.0;
-        var contentW = size.WidthMm - size.BorderLeftMm - size.BorderMm - 2 * pad - 8;
-        var contentH = size.HeightMm - 2 * size.BorderMm - 2 * pad - titleBlockH - 12;
+        const double pad = 32.0;
+        // Keep plan clear of the ISO 7200 block (bottom-right).
+        const double titleBlockW = 220.0;
+        const double titleBlockH = 78.0;
+        var contentW = size.WidthMm - size.BorderLeftMm - size.BorderMm - 2 * pad - titleBlockW * 0.15;
+        var contentH = size.HeightMm - 2 * size.BorderMm - 2 * pad - titleBlockH - 18;
         var pageSpanX = sternLeft ? System.Math.Max(0.2, maxZ - minZ) : System.Math.Max(0.2, maxX - minX);
         var pageSpanY = sternLeft ? System.Math.Max(0.2, maxX - minX) : System.Math.Max(0.2, maxZ - minZ);
         var scale = pageSpanX > 1e-6 && pageSpanY > 1e-6
-            ? System.Math.Min(contentW / pageSpanX, contentH / pageSpanY) * 0.88
+            ? System.Math.Min(contentW / pageSpanX, contentH / pageSpanY) * 0.82
             : 1.0;
         var ox = sternLeft
             ? size.BorderLeftMm + pad + (contentW - pageSpanX * scale) * 0.5 - minZ * scale

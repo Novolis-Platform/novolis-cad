@@ -16,10 +16,18 @@ public sealed class DxfCadImportTests
             DocumentName = "Bishop-Overland",
         });
 
-        await Assert.That(import.WallCount).IsGreaterThanOrEqualTo(100);
+        await Assert.That(import.WallCount).IsGreaterThanOrEqualTo(40);
+        await Assert.That(import.OpeningCount).IsLessThanOrEqualTo(40);
         await Assert.That(import.UnitScaleMeters).IsGreaterThan(0);
         // Mis-tagged mm headers should auto-promote to inches for this residential plan.
         await Assert.That(import.UnitScaleMeters).IsEqualTo(0.0254);
+
+        await Assert.That(DxfCadImporter.IsRoomLabel("Kitchen")).IsTrue();
+        await Assert.That(DxfCadImporter.IsRoomLabel("ENTRY")).IsTrue();
+        await Assert.That(DxfCadImporter.IsRoomLabel("14'6 x 8'2")).IsFalse();
+        await Assert.That(DxfCadImporter.IsRoomLabel("TOP ROOF")).IsFalse();
+        await Assert.That(DxfCadImporter.IsRoomLabel("3068")).IsFalse();
+        await Assert.That(DxfCadImporter.IsRoomLabel("HOUSE, ALSO ON BEARING WALLS")).IsFalse();
 
         using var tmp = new TempDir();
         var export = CadBlueprintExporter.Export(import.Document, new CadBlueprintExportOptions
