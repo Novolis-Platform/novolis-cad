@@ -16,8 +16,19 @@ public sealed class DxfCadImportTests
             DocumentName = "Bishop-Overland",
         });
 
-        await Assert.That(import.WallCount).IsGreaterThanOrEqualTo(40);
+        // Face-pair merge: ~170 WALL lines → ~one centerline per wall run.
+        await Assert.That(import.WallCount).IsGreaterThanOrEqualTo(30);
+        await Assert.That(import.WallCount).IsLessThanOrEqualTo(120);
         await Assert.That(import.OpeningCount).IsLessThanOrEqualTo(40);
+        await Assert.That(import.Notes.Any(n => n.Contains("paired=", StringComparison.Ordinal))).IsTrue();
+
+        var avgThick = import.Document.Entities
+            .Where(e => e.Kind == "wall")
+            .Select(e => e.Thickness)
+            .DefaultIfEmpty(0)
+            .Average();
+        // Paired 4–6" faces should land near ~0.10 m, not the 0.15 m default on every face.
+        await Assert.That(avgThick).IsLessThan(0.14f);
         await Assert.That(import.UnitScaleMeters).IsGreaterThan(0);
         // Mis-tagged mm headers should auto-promote to inches for this residential plan.
         await Assert.That(import.UnitScaleMeters).IsEqualTo(0.0254);

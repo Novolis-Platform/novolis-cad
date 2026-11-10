@@ -43,6 +43,25 @@ public sealed class DxfImportOptions
     /// <summary>Skip LINE shorter than this (metres) when lifting walls.</summary>
     public float MinWallLengthMeters { get; init; } = 0.35f;
 
+    /// <summary>
+    /// Pair parallel wall-face lines into one centerline wall with measured thickness
+    /// (AIA double-line plans). When false, every face becomes a solid of
+    /// <see cref="WallThicknessMeters"/>.
+    /// </summary>
+    public bool PairParallelWallFaces { get; init; } = true;
+
+    /// <summary>Minimum face-pair separation treated as wall thickness (metres).</summary>
+    public float MinWallThicknessMeters { get; init; } = 0.05f;
+
+    /// <summary>Maximum face-pair separation treated as wall thickness (metres).</summary>
+    public float MaxWallThicknessMeters { get; init; } = 0.35f;
+
+    /// <summary>
+    /// Keep face lines that have no parallel partner. Default false: AIA double-line
+    /// leftovers otherwise redraw as overlapping thick solids.
+    /// </summary>
+    public bool KeepUnpairedWallFaces { get; init; }
+
     /// <summary>Opening clear width must be at least this (metres).</summary>
     public float MinOpeningLengthMeters { get; init; } = 0.55f;
 
